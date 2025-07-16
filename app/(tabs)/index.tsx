@@ -1,11 +1,10 @@
 import { StyleSheet } from 'react-native';
 
-import { HelloWave } from '@/components/HelloWave';
 
 
 export default function HomeScreen() {
   return (
-    <HelloWave />
+    <h1>Hello, World!</h1>
   );
 }
 

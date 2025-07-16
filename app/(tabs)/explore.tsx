@@ -1,12 +1,11 @@
 
-import { HelloWave } from '@/components/HelloWave';
 import { StyleSheet } from 'react-native';
 
 
 
 export default function TabTwoScreen() {
   return (
-    <HelloWave />
+    <h1>Hello, World!</h1>
   );
 }
 
