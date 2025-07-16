@@ -2,7 +2,7 @@ import { StyleSheet } from 'react-native';
 
 export default function TabTwoScreen() {
   return (
-    <h1>Hello, Explore!</h1>
+    <h1>Hello, Home!</h1>
   );
 }
 
