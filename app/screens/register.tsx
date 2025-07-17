@@ -24,13 +24,12 @@ export default function OverseeRegister() {
 
     const user = data.user;
 
-    // 👇 Now insert into your custom `users` table
     const { error: insertError } = await supabase.from('users').insert([
       {
-        id: user?.id,         // Use the auth user ID as primary key (recommended)
+        id: user?.id,      
         username: username,
         email: email,
-        role: 'user',         // or 'admin', etc.
+        role: 'user',         // or 'admin'
       },
     ]);
 
@@ -39,7 +38,7 @@ export default function OverseeRegister() {
       // alert('Account created, but failed to save profile.');
     } else {
       console.log('User registered & profile created!');
-      router.push('/home'); // or dashboard screen
+      router.push('/home');
     }
   };
 

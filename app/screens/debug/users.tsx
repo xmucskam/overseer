@@ -26,7 +26,7 @@ export default function Home() {
     if (error) {
       console.error('Supabase fetch error:', error);
     } else {
-      console.log('Fetched users:', data); // 👈 Log the response
+      console.log('Fetched users:', data);
       setUsers(data as User[]);
     }
 
