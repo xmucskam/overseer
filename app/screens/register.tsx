@@ -1,8 +1,9 @@
 import { router } from 'expo-router';
 import React, { useState } from 'react';
-import LoginForm from '../../components/LogInForm';
+import RegisterForm from '../../components/RegisterForm';
 
-export default function OverseeLogin() {
+export default function OverseeRegister() {
+  const [username, setUsername] = useState('johndoe');
   const [email, setEmail] = useState('johndoe@gmail.com');
   const [password, setPassword] = useState('••••••••');
 
@@ -14,9 +15,9 @@ export default function OverseeLogin() {
     console.log('Forgot password clicked');
   };
 
-  const handleRegister = () => {
-    console.log('Register clicked');
-    router.push('./register');
+  const handleBack = () => {
+    console.log('Back clicked');
+    router.push('./welcome');
   };
 
   return (
@@ -32,14 +33,16 @@ export default function OverseeLogin() {
           </div>
         </div>
 
-        <LoginForm
+        <RegisterForm
+          username={username}
+          setUsername={setUsername}
           email={email}
           setEmail={setEmail}
           password={password}
           setPassword={setPassword}
           onLogin={handleLogin}
           onForgotPassword={handleForgotPassword}
-          onRegister={handleRegister}
+          onBack={handleBack}
         />
       </div>
     </div>
