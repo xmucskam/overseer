@@ -2,12 +2,25 @@ import { router } from 'expo-router';
 import React, { useState } from 'react';
 import LoginForm from '../../components/LogInForm';
 
-export default function OverseeLogin() {
-  const [email, setEmail] = useState('johndoe@gmail.com');
-  const [password, setPassword] = useState('••••••••');
+import { supabase } from '../../utils/supabase';
 
-  const handleLogin = () => {
-    console.log('Login attempted');
+export default function OverseeLogin() {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+
+  const handleLogin = async () => {
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
+
+    if (error) {
+      console.error('Login failed:', error.message);
+      alert('Login failed: ' + error.message);
+    } else {
+      console.log('Login success:', data);
+      router.push('/home');
+    }
   };
 
   const handleForgotPassword = () => {

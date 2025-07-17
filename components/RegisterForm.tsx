@@ -7,7 +7,7 @@ interface LoginFormProps {
   setEmail: (email: string) => void;
   password: string;
   setPassword: (password: string) => void;
-  onLogin: () => void;
+  onRegister: () => void;
   onForgotPassword: () => void;
   onBack: () => void;
 }
@@ -19,7 +19,7 @@ export default function LoginForm({
   setEmail,
   password,
   setPassword,
-  onLogin,
+  onRegister,
   onForgotPassword,
   onBack,
 }: LoginFormProps) {
@@ -67,7 +67,7 @@ export default function LoginForm({
           onClick={onForgotPassword}
           className="text-sm text-blue-500 hover:underline"
         >
-          forgot password
+          forgot password?
         </button>
       </div>
 
@@ -79,10 +79,10 @@ export default function LoginForm({
           log in
         </button>
         <button
-          onClick={onLogin}
+          onClick={onRegister}
           className="bg-red-500 hover:bg-red-600 text-white font-medium py-2 px-8 rounded transition-colors"
         >
-          ENTER
+          REGISTER
         </button>
       </div>
     </div>

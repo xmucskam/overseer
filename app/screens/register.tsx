@@ -2,13 +2,45 @@ import { router } from 'expo-router';
 import React, { useState } from 'react';
 import RegisterForm from '../../components/RegisterForm';
 
-export default function OverseeRegister() {
-  const [username, setUsername] = useState('johndoe');
-  const [email, setEmail] = useState('johndoe@gmail.com');
-  const [password, setPassword] = useState('••••••••');
+import { supabase } from '../../utils/supabase';
 
-  const handleLogin = () => {
-    console.log('Login attempted');
+export default function OverseeRegister() {
+  const [username, setUsername] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+
+  const handleRegister = async () => {
+    console.log('Registering user:', { username, email, password });
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+    });
+
+    if (error) {
+      console.error('Signup error:', error.message);
+      alert('Signup failed: ' + error.message);
+      return;
+    }
+
+    const user = data.user;
+
+    // 👇 Now insert into your custom `users` table
+    const { error: insertError } = await supabase.from('users').insert([
+      {
+        id: user?.id,         // Use the auth user ID as primary key (recommended)
+        username: username,
+        email: email,
+        role: 'user',         // or 'admin', etc.
+      },
+    ]);
+
+    if (insertError) {
+      console.error('Error inserting into users table:', insertError.message);
+      // alert('Account created, but failed to save profile.');
+    } else {
+      console.log('User registered & profile created!');
+      router.push('/home'); // or dashboard screen
+    }
   };
 
   const handleForgotPassword = () => {
@@ -40,7 +72,7 @@ export default function OverseeRegister() {
           setEmail={setEmail}
           password={password}
           setPassword={setPassword}
-          onLogin={handleLogin}
+          onRegister={handleRegister}
           onForgotPassword={handleForgotPassword}
           onBack={handleBack}
         />
