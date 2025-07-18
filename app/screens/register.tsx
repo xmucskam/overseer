@@ -38,7 +38,7 @@ export default function OverseeRegister() {
       // alert('Account created, but failed to save profile.');
     } else {
       console.log('User registered & profile created!');
-      router.push('/home');
+      router.push('/dashboard');
     }
   };
 

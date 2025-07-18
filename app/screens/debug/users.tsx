@@ -1,4 +1,4 @@
-// screens/home.tsx
+// screens/dashboard.tsx
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, FlatList, StyleSheet, Text, View } from 'react-native';
 import { supabase } from '../../../utils/supabase';

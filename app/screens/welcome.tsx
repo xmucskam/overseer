@@ -19,7 +19,7 @@ export default function OverseeLogin() {
       alert('Login failed: ' + error.message);
     } else {
       console.log('Login success:', data);
-      router.push('/home');
+      router.push('/dashboard');
     }
   };
 
