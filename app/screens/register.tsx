@@ -1,13 +1,16 @@
 import { router } from 'expo-router';
 import React, { useState } from 'react';
-import RegisterForm from '../../components/RegisterForm';
 
+
+import RegisterForm from '../../components/RegisterForm';
 import { supabase } from '../../utils/supabase';
+import PopUpModal from "@/components/PopUpModal";
 
 export default function OverseeRegister() {
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [modalVisible, setModalVisible] = useState(false);
 
   const handleRegister = async () => {
     console.log('Registering user:', { username, email, password });
@@ -22,24 +25,7 @@ export default function OverseeRegister() {
       return;
     }
 
-    const user = data.user;
-
-    const { error: insertError } = await supabase.from('users').insert([
-      {
-        id: user?.id,      
-        username: username,
-        email: email,
-        role: 'user',         // or 'admin'
-      },
-    ]);
-
-    if (insertError) {
-      console.error('Error inserting into users table:', insertError.message);
-      // alert('Account created, but failed to save profile.');
-    } else {
-      console.log('User registered & profile created!');
-      router.push('/dashboard');
-    }
+    setModalVisible(true);
   };
 
   const handleForgotPassword = () => {
@@ -76,6 +62,14 @@ export default function OverseeRegister() {
           onBack={handleBack}
         />
       </div>
+      <PopUpModal
+          visible={modalVisible}
+          onClose={() => {
+            setModalVisible(false);
+            router.push('./welcome');
+          }}
+          message="Confirmation Email Has Been Sent!"
+      />
     </div>
   );
 }

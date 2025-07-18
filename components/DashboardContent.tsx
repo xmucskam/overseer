@@ -23,12 +23,13 @@ const DashboardContent: React.FC<DashboardContentProps> = ({
                                                                posts,
                                                            }) => {
     return (
-        <View style={{ padding: 16 }}>
+        <View className="p-4">
             <TextInput
                 placeholder="What's on your mind?"
                 value={postText}
                 onChangeText={setPostText}
-                style={{ borderWidth: 1, padding: 8, marginBottom: 10 }}
+
+                className="p-2 border-2 mb-1.5"
             />
             <Button title="Post" onPress={handleAddPost} />
 
@@ -36,10 +37,10 @@ const DashboardContent: React.FC<DashboardContentProps> = ({
                 data={posts}
                 keyExtractor={(item) => item.id}
                 renderItem={({ item }) => (
-                    <View style={{ padding: 8, borderBottomWidth: 1 }}>
+                    <View >
                         <Text>{item.make} {item.model}</Text>
                         <Text>{item.production_year}</Text>
-                        <Text style={{ fontSize: 10, color: '#666' }}>{item.created_at}</Text>
+                        <Text>{item.created_at}</Text>
                     </View>
                 )}
             />
