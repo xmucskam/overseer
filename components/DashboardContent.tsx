@@ -48,8 +48,6 @@ const DashboardContent: React.FC<DashboardContentProps> = ({
     return (
         <ScrollView className="flex-1 p-4">
             <View className="mb-6">
-                <Text className="text-xl font-bold text-gray-900 mb-4">Dashboard Overview</Text>
-
                 <View className="bg-gradient-to-tr from-sky-500 via-blue-500 to-indigo-500 rounded-xl p-6 mb-4 shadow-xl">
                     <View className="flex-row items-center justify-between mb-3">
                         <View className="flex-row items-center">
@@ -150,7 +148,7 @@ const DashboardContent: React.FC<DashboardContentProps> = ({
 
             {/* Posts section */}
             <View className="flex-row items-center justify-between mb-4">
-                <Text className="text-lg font-bold text-gray-900">Your Vehicles</Text>
+                <Text className="text-lg font-bold text-blue-300">Your Vehicles</Text>
                 <TouchableOpacity className="bg-blue-500 px-4 py-2 rounded-lg">
                     <Text className="text-white text-sm font-medium">Add Vehicle</Text>
                 </TouchableOpacity>
@@ -160,10 +158,8 @@ const DashboardContent: React.FC<DashboardContentProps> = ({
                 data={posts}
                 keyExtractor={(item) => item.id.toString()}
                 renderItem={({ item }) => (
-                    <Pressable className="bg-gradient-to-tr from-green-100 to-gray-50 border border-green-200 rounded-lg mb-4 overflow-hidden p-4">  {/*add: if the car in good condition green background if not red/orange*/}
-                        {/* Top section with image and main info */}
+                    <Pressable className="bg-gradient-to-tl from-warning to-gray-50 border border-warning rounded-lg mb-4 overflow-hidden p-4">  {/*add: if the car in good condition green background if not red/orange*/}
                         <View className="flex-row mb-3">
-                            {/* Left image section */}
                             <View className="w-20 h-20 bg-white rounded-lg overflow-hidden mr-3">
                                 <Image
                                     style={{ width: '100%', height: '100%' }}

@@ -11,11 +11,24 @@ export default function Dashboard() {
     }, []);
 
     const fetchPosts = async () => {
+        // const { data, error } = await supabase
+        //     .from('records')
+        //     .select('*')
+        //     .order('created_at', { ascending: false });
+
         const { data, error } = await supabase
             .from('records')
-            .select('*')
+            .select(`
+                *,
+                car_details (
+                    tire_type,
+                    last_service,
+                    availability
+                )
+            `)
             .order('created_at', { ascending: false });
 
+        console.log(data);
         if (error) console.error(error);
         else setPosts(data);
     };
