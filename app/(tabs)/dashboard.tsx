@@ -11,26 +11,56 @@ export default function Dashboard() {
     }, []);
 
     const fetchPosts = async () => {
-        // const { data, error } = await supabase
-        //     .from('records')
-        //     .select('*')
-        //     .order('created_at', { ascending: false });
-
         const { data, error } = await supabase
             .from('records')
             .select(`
-                *,
-                car_details (
-                    tire_type,
-                    last_service,
-                    availability
-                )
-            `)
+            *,
+            car_details (
+                tire_type,
+                last_service,
+                availability
+            )
+        `)
             .order('created_at', { ascending: false });
 
-        console.log(data);
-        if (error) console.error(error);
-        else setPosts(data);
+        console.log('Raw data from Supabase:', JSON.stringify(data, null, 2));
+
+        if (error) {
+            console.error('Supabase error:', error);
+        } else {
+            setPosts(data || []);
+        }
+
+        // works partially
+        // const { data, error } = await supabase
+        //     .from('records')
+        //     .select(`
+        //         *,
+        //         car_details (
+        //             tire_type,
+        //             last_service,
+        //             availability
+        //         )
+        //     `)
+        //     .order('created_at', { ascending: false });
+        //
+        // console.log(data);
+        // if (error) console.error(error);
+        // else setPosts(data);
+
+        // Check if CUIDs actually match between tables
+        // const { data: recordCuids } = await supabase
+        //     .from('records')
+        //     .select('cuid')
+        //     .limit(5);
+        //
+        // const { data: carDetailsCuids } = await supabase
+        //     .from('car_details')
+        //     .select('cuid')
+        //     .limit(5);
+        //
+        // console.log('Record CUIDs:', recordCuids);
+        // console.log('Car Details CUIDs:', carDetailsCuids);
     };
 
     const handleAddPost = async () => {

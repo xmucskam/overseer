@@ -6,7 +6,7 @@ import StaticCarImage from '@/assets/images/carTypes/removebg/sedan.png';
 interface VehicleDetails {
     tire_type: string;
     last_service: string;
-    availability: string;
+    availability: boolean;
 }
 
 interface Post {
@@ -15,7 +15,7 @@ interface Post {
     model: string;
     production_year: string;
     created_at: string;
-    details?: VehicleDetails | null;
+    car_details?: VehicleDetails | null;
 }
 
 interface DashboardContentProps {
@@ -32,7 +32,10 @@ const DashboardContent: React.FC<DashboardContentProps> = ({
                                                                posts,
                                                            }) => {
     const totalPosts = posts.length;
-    const availableVehicles = posts.length; // Assuming all posts are available
+    const availableVehicles = posts.filter(post =>
+        post.car_details?.availability === true
+    ).length;
+
     const recentPosts = posts.filter(post => {
         const postDate = new Date(post.created_at);
         const weekAgo = new Date();
@@ -73,7 +76,7 @@ const DashboardContent: React.FC<DashboardContentProps> = ({
                     </View>
                 </View>
 
-                {/* Grid */}
+                {/* grid */}
                 <View className="flex-row flex-wrap gap-3">
                     <View className="bg-green-50 border border-green-200 rounded-xl p-4 w-[48%] h-24">
                         <View className="flex-row items-center justify-between mb-2">
@@ -146,7 +149,7 @@ const DashboardContent: React.FC<DashboardContentProps> = ({
                 </View>
             </View>
 
-            {/* Posts section */}
+            {/* posts section */}
             <View className="flex-row items-center justify-between mb-4">
                 <Text className="text-lg font-bold text-blue-300">Your Vehicles</Text>
                 <TouchableOpacity className="bg-blue-500 px-4 py-2 rounded-lg">
@@ -157,68 +160,78 @@ const DashboardContent: React.FC<DashboardContentProps> = ({
             <FlatList
                 data={posts}
                 keyExtractor={(item) => item.id.toString()}
-                renderItem={({ item }) => (
-                    <Pressable className="bg-gradient-to-tl from-warning to-gray-50 border border-warning rounded-lg mb-4 overflow-hidden p-4">  {/*add: if the car in good condition green background if not red/orange*/}
-                        <View className="flex-row mb-3">
-                            <View className="w-20 h-20 bg-white rounded-lg overflow-hidden mr-3">
-                                <Image
-                                    style={{ width: '100%', height: '100%' }}
-                                    source={StaticCarImage}
-                                    resizeMode="contain"
-                                />
-                            </View>
+                renderItem={({ item }) => {
+                    const carDetail = item.car_details;
 
-                            {/* main title*/}
-                            <View className="flex-1 justify-center">
-                                <Text className="text-lg font-bold text-gray-900 mb-1">
-                                    {item.make} {item.model}
-                                </Text>
-                                <Text className="text-sm text-gray-600 mb-1">
-                                    Year: {item.production_year}
-                                </Text>
-                                <Text className="text-xs text-blue-600 font-medium">
-                                    Available Now
-                                </Text>
-                            </View>
+                    return (
+                        <Pressable className={`bg-gradient-to-tl ${carDetail?.availability ? 'from-success to-gray-50 border border-success' : 'from-gray-100 to-gray-50 border border-error'} rounded-lg mb-4 overflow-hidden p-4`}>
+                            <View className="flex-row mb-3">
+                                <View className="w-20 h-20 bg-white rounded-lg overflow-hidden mr-3">
+                                    <Image
+                                        style={{ width: '100%', height: '100%' }}
+                                        source={StaticCarImage}
+                                        resizeMode="contain"
+                                    />
+                                </View>
 
-                            <View className="justify-center">
-                                <Text className="text-gray-400 text-xl">›</Text>
-                            </View>
-                        </View>
-
-                        {/* info section */}
-                        <View className="border-t border-gray-100 pt-3">
-                            <View className="flex-row justify-between mb-2">
-                                <View className="flex-row items-center">
-                                    <View className="w-3 h-3 bg-blue-500 rounded-full mr-2"></View>
-                                    <Text className="text-sm text-gray-600">Tire:</Text>
-                                </View>
-                                <Text className="text-sm font-medium text-gray-900">{item.details?.tire_type || 'Unknown'}</Text>
-                            </View>
-                            <View className="flex-row justify-between mb-2">
-                                <View className="flex-row items-center">
-                                    <View className="w-3 h-3 bg-orange-500 rounded-full mr-2"></View>
-                                    <Text className="text-sm text-gray-600">Last Service:</Text>
-                                </View>
-                                <Text className="text-sm font-medium text-gray-900">{item.details?.last_service ? new Date(item.details.last_service).toLocaleDateString() : 'N/A'}</Text>
-                            </View>
-                            <View className="flex-row justify-between mb-2">
-                                <View className="flex-row items-center">
-                                    <View className="w-3 h-3 bg-green-500 rounded-full mr-2"></View>
-                                    <Text className="text-sm text-gray-600">Availability:</Text>
-                                </View>
-                                <Text className="text-sm font-medium text-green-600">Available</Text>
-                            </View>
-                            <View className="flex-row justify-between items-center">
-                                <View className="flex-row items-center">
-                                    <Text className="text-xs text-gray-400">
-                                        Posted: {new Date(item.created_at).toLocaleDateString()}
+                                {/* main title*/}
+                                <View className="flex-1 justify-center">
+                                    <Text className="text-lg font-bold text-gray-900 mb-1">
+                                        {item.make} {item.model}
+                                    </Text>
+                                    <Text className="text-sm text-gray-600 mb-1">
+                                        Year: {item.production_year}
+                                    </Text>
+                                    <Text className="text-xs text-blue-600 font-medium">
+                                        {carDetail?.availability ? 'Available Now' : 'Not Available'}
                                     </Text>
                                 </View>
+
+                                <View className="justify-center">
+                                    <Text className="text-gray-400 text-xl">›</Text>
+                                </View>
                             </View>
-                        </View>
-                    </Pressable>
-                )}
+
+                            {/* info section */}
+                            <View className="border-t border-gray-100 pt-3">
+                                <View className="flex-row justify-between mb-2">
+                                    <View className="flex-row items-center">
+                                        <View className="w-3 h-3 bg-blue-500 rounded-full mr-2"></View>
+                                        <Text className="text-sm text-gray-600">Tire:</Text>
+                                    </View>
+                                    <Text className="text-sm font-medium text-gray-900">
+                                        {carDetail?.tire_type || 'Unknown'}
+                                    </Text>
+                                </View>
+                                <View className="flex-row justify-between mb-2">
+                                    <View className="flex-row items-center">
+                                        <View className="w-3 h-3 bg-orange-500 rounded-full mr-2"></View>
+                                        <Text className="text-sm text-gray-600">Last Service:</Text>
+                                    </View>
+                                    <Text className="text-sm font-medium text-gray-900">
+                                        {carDetail?.last_service ? new Date(carDetail.last_service).toLocaleDateString() : 'N/A'}
+                                    </Text>
+                                </View>
+                                <View className="flex-row justify-between mb-2">
+                                    <View className="flex-row items-center">
+                                        <View className="w-3 h-3 bg-green-500 rounded-full mr-2"></View>
+                                        <Text className="text-sm text-gray-600">Availability:</Text>
+                                    </View>
+                                    <Text className={`text-sm font-medium ${carDetail?.availability ? 'text-green-600' : 'text-red-600'}`}>
+                                        {carDetail?.availability ? 'Available' : 'Not Available'}
+                                    </Text>
+                                </View>
+                                <View className="flex-row justify-between items-center">
+                                    <View className="flex-row items-center">
+                                        <Text className="text-xs text-gray-400">
+                                            Posted: {new Date(item.created_at).toLocaleDateString()}
+                                        </Text>
+                                    </View>
+                                </View>
+                            </View>
+                        </Pressable>
+                    );
+                }}
             />
         </ScrollView>
     );
