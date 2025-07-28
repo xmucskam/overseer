@@ -15,7 +15,7 @@ interface Post {
     model: string;
     production_year: string;
     created_at: string;
-    car_details?: VehicleDetails | null;
+    cars?: VehicleDetails | null;
 }
 
 interface DashboardContentProps {
@@ -23,13 +23,14 @@ interface DashboardContentProps {
     setPostText: (text: string) => void;
     handleAddPost: () => void;
     posts: Post[];
+    onAddVehiclePress: () => void;
 }
-
 const DashboardContent: React.FC<DashboardContentProps> = ({
                                                                postText,
                                                                setPostText,
                                                                handleAddPost,
                                                                posts,
+                                                               onAddVehiclePress,
                                                            }) => {
     const totalPosts = posts.length;
     const availableVehicles = posts.filter(post =>
@@ -152,7 +153,10 @@ const DashboardContent: React.FC<DashboardContentProps> = ({
             {/* posts section */}
             <View className="flex-row items-center justify-between mb-4">
                 <Text className="text-lg font-bold text-blue-300">Your Vehicles</Text>
-                <TouchableOpacity className="bg-blue-500 px-4 py-2 rounded-lg">
+                <TouchableOpacity
+                    className="bg-blue-500 px-4 py-2 rounded-lg"
+                    onPress={onAddVehiclePress}
+                >
                     <Text className="text-white text-sm font-medium">Add Vehicle</Text>
                 </TouchableOpacity>
             </View>
@@ -161,7 +165,7 @@ const DashboardContent: React.FC<DashboardContentProps> = ({
                 data={posts}
                 keyExtractor={(item) => item.id.toString()}
                 renderItem={({ item }) => {
-                    const carDetail = item.car_details;
+                    const carDetail = item.cars;
 
                     return (
                         <Pressable className={`bg-gradient-to-tl ${carDetail?.availability ? 'from-success to-gray-50 border border-success' : 'from-gray-100 to-gray-50 border border-error'} rounded-lg mb-4 overflow-hidden p-4`}>

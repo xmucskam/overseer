@@ -1,84 +1,52 @@
 import React, { useEffect, useState } from 'react';
 import { supabase } from '../../utils/supabase';
 import DashboardContent from '../../components/DashboardContent';
+import { router } from 'expo-router';
 
 export default function Dashboard() {
+    const [cars, setCars] = useState<any[]>([]);
     const [postText, setPostText] = useState('');
-    const [posts, setPosts] = useState<any[]>([]);
 
     useEffect(() => {
-        fetchPosts();
+        fetchGarageCars();
     }, []);
 
-    const fetchPosts = async () => {
-        const { data, error } = await supabase
-            .from('records')
-            .select(`
-            *,
-            car_details (
-                tire_type,
-                last_service,
-                availability
-            )
-        `)
-            .order('created_at', { ascending: false });
+    const fetchGarageCars = async () => {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
 
-        console.log('Raw data from Supabase:', JSON.stringify(data, null, 2));
+        const { data: garages, error: garageError } = await supabase
+            .from('garages')
+            .select('id, name')
+            .eq('user_id', user.id)
+            .limit(1); //first for now
 
-        if (error) {
-            console.error('Supabase error:', error);
-        } else {
-            setPosts(data || []);
+        if (garageError || !garages?.length) {
+            console.error('Error fetching garage:', garageError);
+            return;
         }
 
-        // works partially
-        // const { data, error } = await supabase
-        //     .from('records')
-        //     .select(`
-        //         *,
-        //         car_details (
-        //             tire_type,
-        //             last_service,
-        //             availability
-        //         )
-        //     `)
-        //     .order('created_at', { ascending: false });
-        //
-        // console.log(data);
-        // if (error) console.error(error);
-        // else setPosts(data);
+        const garageId = garages[0].id;
 
-        // Check if CUIDs actually match between tables
-        // const { data: recordCuids } = await supabase
-        //     .from('records')
-        //     .select('cuid')
-        //     .limit(5);
-        //
-        // const { data: carDetailsCuids } = await supabase
-        //     .from('car_details')
-        //     .select('cuid')
-        //     .limit(5);
-        //
-        // console.log('Record CUIDs:', recordCuids);
-        // console.log('Car Details CUIDs:', carDetailsCuids);
+        const { data: cars, error: carError } = await supabase
+            .from('cars')
+            .select('*')
+            .eq('garage_id', garageId)
+            .order('created_at', { ascending: false });
+
+        if (carError) {
+            console.error('Error fetching cars:', carError);
+        } else {
+            setCars(cars || []);
+        }
     };
 
     const handleAddPost = async () => {
-        const user = (await supabase.auth.getUser()).data.user;
-        if (!user) return alert('Not logged in');
+        // later
+    };
 
-        const { error } = await supabase.from('posts').insert([
-            {
-                content: postText,
-                user_id: user.id,
-            },
-        ]);
-
-        if (error) console.error(error);
-        else {
-            setPostText('');
-            fetchPosts();
-        }
+    const handleAddVehiclePress = () => {
+        router.push('../screens/addVehicle');
     };
 
     return (
@@ -86,7 +54,8 @@ export default function Dashboard() {
             postText={postText}
             setPostText={setPostText}
             handleAddPost={handleAddPost}
-            posts={posts}
+            posts={cars}
+            onAddVehiclePress={handleAddVehiclePress}
         />
     );
 }
