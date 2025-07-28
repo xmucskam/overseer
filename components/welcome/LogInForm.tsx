@@ -33,7 +33,6 @@ export default function LoginForm({
         />
       </div>
 
-      {/* Password */}
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-2">Password</label>
         <input
@@ -45,7 +44,6 @@ export default function LoginForm({
         />
       </div>
 
-      {/* Links and Submit */}
       <div className="text-left">
         <button
           onClick={onForgotPassword}

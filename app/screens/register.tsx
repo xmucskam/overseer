@@ -2,9 +2,9 @@ import { router } from 'expo-router';
 import React, { useState } from 'react';
 
 
-import RegisterForm from '../../components/RegisterForm';
+import RegisterForm from '../../components/welcome/RegisterForm';
 import { supabase } from '../../utils/supabase';
-import PopUpModal from "@/components/PopUpModal";
+import PopUpModal from "@/components/welcome/PopUpModal";
 
 export default function OverseeRegister() {
   const [username, setUsername] = useState('');

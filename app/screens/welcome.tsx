@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
 import React, { useState } from 'react';
-import LoginForm from '../../components/LogInForm';
+import LoginForm from '../../components/welcome/LogInForm';
 
 import { supabase } from '../../utils/supabase';
 
