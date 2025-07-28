@@ -34,7 +34,7 @@ const DashboardContent: React.FC<DashboardContentProps> = ({
                                                            }) => {
     const totalPosts = posts.length;
     const availableVehicles = posts.filter(post =>
-        post.car_details?.availability === true
+        post.cars?.availability === true
     ).length;
 
     const recentPosts = posts.filter(post => {

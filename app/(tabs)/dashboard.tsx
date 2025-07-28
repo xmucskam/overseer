@@ -19,7 +19,6 @@ export default function Dashboard() {
             .from('garages')
             .select('id, name')
             .eq('user_id', user.id)
-            .limit(1); //first for now
 
         if (garageError || !garages?.length) {
             console.error('Error fetching garage:', garageError);
@@ -36,10 +35,25 @@ export default function Dashboard() {
 
         if (carError) {
             console.error('Error fetching cars:', carError);
-        } else {
-            setCars(cars || []);
+            return;
         }
+
+        const posts = (cars || []).map(car => ({
+            id: car.id,
+            make: car.make,
+            model: car.model,
+            production_year: String(car.production_year),
+            created_at: car.created_at,
+            cars: {
+                availability: car.availability,
+                tire_type: car.tire_type,
+                last_service: car.last_service,
+            },
+        }));
+
+        setCars(posts);
     };
+
 
     const handleAddPost = async () => {
         // later
