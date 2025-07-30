@@ -1,6 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { Button, FlatList, Text, TextInput, View, Image, TouchableOpacity, Pressable, ScrollView, Dimensions } from 'react-native';
 
+// @ts-ignore
 import StaticCarImage from '@/assets/images/carTypes/removebg/sedan.png';
 
 const { width: screenWidth } = Dimensions.get('window');
@@ -34,6 +35,7 @@ interface DashboardContentProps {
     handleAddPost: () => void;
     garages: Garage[];
     onAddVehiclePress: (garageId?: string) => void;
+    onCarPress: (carId: string, carData: Post) => void;
 }
 
 const DashboardContent: React.FC<DashboardContentProps> = ({
@@ -42,6 +44,7 @@ const DashboardContent: React.FC<DashboardContentProps> = ({
                                                                handleAddPost,
                                                                garages,
                                                                onAddVehiclePress,
+                                                               onCarPress,
                                                            }) => {
     const [currentGarageIndex, setCurrentGarageIndex] = useState(0);
     const garageScrollRef = useRef<ScrollView>(null);
@@ -69,7 +72,6 @@ const DashboardContent: React.FC<DashboardContentProps> = ({
         const cardWidth = GARAGE_CARD_WIDTH + 16;
         const index = Math.round((scrollX + 8) / cardWidth);
 
-        // Clamp the index to valid range
         const clampedIndex = Math.max(0, Math.min(index, garages.length - 1));
 
         setCurrentGarageIndex(clampedIndex);
@@ -97,7 +99,7 @@ const DashboardContent: React.FC<DashboardContentProps> = ({
                     marginHorizontal: 8
                 }}
             >
-                <View className={`${isActive ? 'bg-gradient-to-tr from-sky-500 via-blue-500 to-indigo-500' : 'bg-gradient-to-tr from-gray-400 via-gray-500 to-gray-600'} rounded-xl p-6 mb-4 transition-all duration-300`}>
+                <View className={`${isActive ? 'bg-gradient-to-tl from-sky-400 to-purple-400' : 'bg-gradient-to-tr from-gray-300 via-gray-300 to-gray-300'} rounded-xl p-6 mb-4 transition-all duration-300`}>
                     <View className="flex-row items-center justify-between mb-3">
                         <View className="flex-row items-center">
                             <View className="w-12 h-12 bg-white bg-opacity-20 rounded-lg flex items-center justify-center mr-3">
@@ -127,7 +129,6 @@ const DashboardContent: React.FC<DashboardContentProps> = ({
                     </View>
                 </View>
 
-                {/* Garage stats */}
                 <View className="flex-row justify-center gap-2 mb-4">
                     <View className="bg-green-50 border border-green-200 rounded-lg p-3 flex-1 max-w-[30%]">
                         <Text className="text-xl font-bold text-green-600">{garageAvailable}</Text>
@@ -153,7 +154,14 @@ const DashboardContent: React.FC<DashboardContentProps> = ({
         return (
             <Pressable
                 key={item.id}
-                className={`bg-gradient-to-tl ${carDetail?.availability ? 'from-success to-gray-50 border border-success' : 'from-gray-100 to-gray-50 border border-error'} rounded-lg mb-4 overflow-hidden p-4`}
+                className={`bg-gradient-to-tl ${carDetail?.availability ? 'from-success to-gray-50 border border-success' : 'from-gray-100 to-gray-50 border border-error'} rounded-lg mb-4 overflow-hidden p-4 active:opacity-70 active:scale-98`}
+                onPress={() => onCarPress(item.id, item)}
+                style={({ pressed }) => [
+                    {
+                        opacity: pressed ? 0.7 : 1,
+                        transform: [{ scale: pressed ? 0.98 : 1 }],
+                    }
+                ]}
             >
                 <View className="flex-row mb-3">
                     <View className="w-20 h-20 bg-white rounded-lg overflow-hidden mr-3">
@@ -245,7 +253,7 @@ const DashboardContent: React.FC<DashboardContentProps> = ({
     return (
         <ScrollView className="flex-1 bg-gray-50">
             <View className="pb-2">
-                <View className="bg-gradient-to-tr from-purple-500 via-pink-500 to-red-500 rounded-b-xl p-8 mb-4 shadow-xl">
+                <View className="bg-gradient-to-tr from-purple-400 to-red-400 rounded-b-xl p-8 mb-4 shadow-xl">
                     <View className="flex-row items-center justify-between mb-3">
                         <View className="flex-row items-center">
                             <View className="w-12 h-12 bg-white bg-opacity-20 rounded-lg flex items-center justify-center mr-3">
@@ -263,11 +271,11 @@ const DashboardContent: React.FC<DashboardContentProps> = ({
                     </View>
                 </View>
 
-                <View className="flex-row flex-wrap gap-3 mb-4">
-                    <View className="bg-green-50 border border-green-200 rounded-xl p-4 w-[48%] h-24">
+                <View className="flex-row flex-wrap justify-center gap-3 mb-4">
+                    <View className="bg-green-50 border border-green-200 rounded-xl p-3 w-[42%] h-24">
                         <View className="flex-row items-center justify-between mb-2">
                             <Text className="text-2xl font-bold text-green-600">{availableVehicles}</Text>
-                            <View className="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center">
+                            <View className="w-8 h-8 bg-green-300 rounded-full flex items-center justify-center">
                                 <Text className="text-white text-sm">✓</Text>
                             </View>
                         </View>
@@ -275,10 +283,10 @@ const DashboardContent: React.FC<DashboardContentProps> = ({
                         <Text className="text-xs text-green-600">ready to go</Text>
                     </View>
 
-                    <View className="bg-orange-50 border border-orange-200 rounded-xl p-4 w-[48%] h-24">
+                    <View className="bg-orange-50 border border-orange-200 rounded-xl p-3 w-[42%] h-24">
                         <View className="flex-row items-center justify-between mb-2">
                             <Text className="text-2xl font-bold text-orange-600">{recentPosts}</Text>
-                            <View className="w-8 h-8 bg-orange-500 rounded-full flex items-center justify-center">
+                            <View className="w-8 h-8 bg-orange-200 rounded-full flex items-center justify-center">
                                 <Text className="text-white text-sm">📅</Text>
                             </View>
                         </View>
@@ -286,10 +294,10 @@ const DashboardContent: React.FC<DashboardContentProps> = ({
                         <Text className="text-xs text-orange-600">this week</Text>
                     </View>
 
-                    <View className="bg-purple-50 border border-purple-200 rounded-xl p-4 w-[48%] h-24">
+                    <View className="bg-purple-50 border border-purple-200 rounded-xl p-3 w-[42%] h-24">
                         <View className="flex-row items-center justify-between mb-2">
                             <Text className="text-2xl font-bold text-purple-600">{modernVehicles}</Text>
-                            <View className="w-8 h-8 bg-purple-500 rounded-full flex items-center justify-center">
+                            <View className="w-8 h-8 bg-purple-200 rounded-full flex items-center justify-center">
                                 <Text className="text-white text-sm">✨</Text>
                             </View>
                         </View>
@@ -297,10 +305,10 @@ const DashboardContent: React.FC<DashboardContentProps> = ({
                         <Text className="text-xs text-purple-600">2014 or newer</Text>
                     </View>
 
-                    <View className="bg-blue-50 border border-blue-200 rounded-xl p-4 w-[48%] h-24">
+                    <View className="bg-blue-50 border border-blue-200 rounded-xl p-3 w-[42%] h-24">
                         <View className="flex-row items-center justify-between mb-2">
                             <Text className="text-2xl font-bold text-blue-600">{garages.length}</Text>
-                            <View className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center">
+                            <View className="w-8 h-8 bg-blue-200 rounded-full flex items-center justify-center">
                                 <Text className="text-white text-sm">🏠</Text>
                             </View>
                         </View>
@@ -330,14 +338,13 @@ const DashboardContent: React.FC<DashboardContentProps> = ({
                     {garages.map((garage, index) => renderGarageCard(garage, index))}
                 </ScrollView>
 
-                {/* indicators */}
                 <View className="flex-row justify-center items-center">
                     {garages.map((_, index) => (
                         <TouchableOpacity
                             key={index}
                             onPress={() => scrollToGarage(index)}
                             className={`w-2 h-2 rounded-full mx-1 ${
-                                index === currentGarageIndex ? 'bg-blue-500' : 'bg-gray-200'
+                                index === currentGarageIndex ? 'bg-blue-400' : 'bg-gray-200'
                             }`}
                         />
                     ))}

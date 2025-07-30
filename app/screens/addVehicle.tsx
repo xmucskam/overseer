@@ -247,7 +247,7 @@ export default function AddVehicle() {
 
         } catch (error) {
             console.error('Submit error:', error);
-            Alert.alert('Error', `Something went wrong: ${error.message || 'Please try again.'}`);
+            // Alert.alert('Error', `Something went wrong: ${error.message || 'Please try again.'}`);
         } finally {
             setLoading(false);
         }

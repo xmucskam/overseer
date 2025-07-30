@@ -3,10 +3,26 @@ import { supabase } from '../../utils/supabase';
 import DashboardContent from '../../components/DashboardContent';
 import { router } from 'expo-router';
 
+interface VehicleDetails {
+    tire_type: string;
+    last_service: string;
+    availability: boolean;
+}
+
+interface Post {
+    id: string;
+    make: string;
+    model: string;
+    production_year: string;
+    created_at: string;
+    garage_id: string;
+    cars?: VehicleDetails | null;
+}
+
 interface Garage {
     id: string;
     name: string;
-    cars: any[];
+    cars: Post[];
 }
 
 export default function Dashboard() {
@@ -87,6 +103,16 @@ export default function Dashboard() {
         }
     };
 
+    const handleCarPress = (carId: string, carData: Post) => {
+        router.push({
+            pathname: '../screens/carDetail',
+            params: {
+                carId: carId,
+                carData: JSON.stringify(carData),
+            }
+        });
+    };
+
     if (loading) {
         return null;
     }
@@ -98,6 +124,7 @@ export default function Dashboard() {
             handleAddPost={handleAddPost}
             garages={garages}
             onAddVehiclePress={handleAddVehiclePress}
+            onCarPress={handleCarPress}
         />
     );
 }
