@@ -8,16 +8,15 @@ import {
     Alert,
     ActivityIndicator,
     StatusBar,
-    Dimensions,
+    StyleSheet,
+    Platform,
 } from 'react-native';
-import {useLocalSearchParams, router, useRouter} from 'expo-router';
+import { useLocalSearchParams, router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '@/utils/supabase';
 
 // @ts-ignore
 import StaticCarImage from '@/assets/images/carTypes/removebg/sedan.png';
-
-const { width } = Dimensions.get('window');
 
 interface VehicleDetails {
     tire_type: string;
@@ -141,68 +140,48 @@ export default function CarDetail() {
     };
 
     const handleDelete = async () => {
-        console.log('delete', carId);
         if (!car) return;
 
-        try {
-            const { error } = await supabase
-                .from('cars')
-                .delete()
-                .eq('id', car.id);
-
-            if (error) {
-                console.error('Error deleting car:', error);
-                Alert.alert('Error', 'Failed to delete vehicle');
-                return;
-            }
-
-            console.log('Success', 'Vehicle deleted successfully', [
+        Alert.alert(
+            'Delete Vehicle',
+            'Are you sure you want to delete this vehicle? This action cannot be undone.',
+            [
                 {
-                    text: 'OK',
-                    onPress: () => router.back(),
+                    text: 'Cancel',
+                    style: 'cancel',
                 },
-            ]);
-            router.replace('/dashboard');
+                {
+                    text: 'Delete',
+                    style: 'destructive',
+                    onPress: async () => {
+                        try {
+                            const { error } = await supabase
+                                .from('cars')
+                                .delete()
+                                .eq('id', car.id);
 
-        } catch (error) {
-            console.error('Error deleting car:', error);
-            Alert.alert('Error', 'Failed to delete vehicle');
-        }
-    };
+                            if (error) {
+                                console.error('Error deleting car:', error);
+                                Alert.alert('Error', 'Failed to delete vehicle');
+                                return;
+                            }
 
-    const confirmDelete = async () => {
-        // if (!car) return;
-        //
-        // try {
-        //     const { error } = await supabase
-        //         .from('cars')
-        //         .delete()
-        //         .eq('id', car.id);
-        //
-        //     if (error) {
-        //         console.error('Error deleting car:', error);
-        //         Alert.alert('Error', 'Failed to delete vehicle');
-        //         return;
-        //     }
-        //
-        //     Alert.alert('Success', 'Vehicle deleted successfully', [
-        //         {
-        //             text: 'OK',
-        //             onPress: () => router.back(),
-        //         },
-        //     ]);
-        // } catch (error) {
-        //     console.error('Error deleting car:', error);
-        //     Alert.alert('Error', 'Failed to delete vehicle');
-        // }
-        //fiiiiiix
+                            router.replace('/(tabs)/dashboard');
+                        } catch (error) {
+                            console.error('Error deleting car:', error);
+                            Alert.alert('Error', 'Failed to delete vehicle');
+                        }
+                    },
+                },
+            ]
+        );
     };
 
     if (loading || !car) {
         return (
-            <View className="flex-1 justify-center items-center bg-gray-50">
-                <ActivityIndicator size="large" color="#6366F1" />
-                <Text className="mt-4 text-gray-600">Loading vehicle details...</Text>
+            <View style={styles.loadingContainer}>
+                <ActivityIndicator size="large" color="#0b6b8a" />
+                <Text style={styles.loadingText}>Loading vehicle details...</Text>
             </View>
         );
     }
@@ -214,67 +193,66 @@ export default function CarDetail() {
     const isModern = carAge <= 10;
 
     return (
-        <View className="flex-1 bg-gray-50">
-            <StatusBar barStyle="dark-content" backgroundColor="#F9FAFB" />
+        <View style={styles.container}>
+            <StatusBar barStyle="dark-content" backgroundColor="#f8fafc" />
 
             {/* Header */}
-            <View className="bg-gradient-to-br from-violet-50 via-sky-50 to-emerald-50 pt-10 pb-4 px-6">
-                <View className="flex-row items-center justify-between mb-4">
+            <View style={styles.header}>
+                <View style={styles.headerTop}>
                     <TouchableOpacity
                         onPress={() => router.back()}
-                        className="w-9 h-9 bg-white/80 backdrop-blur rounded-xl items-center justify-center shadow shadow-black/10"
+                        style={styles.headerButton}
                     >
-                        <Ionicons name="arrow-back" size={18} color="#475569" />
+                        <Ionicons name="arrow-back" size={20} color="#475569" />
                     </TouchableOpacity>
-                    <View className="flex-row space-x-2">
+                    <View style={styles.headerActions}>
                         <TouchableOpacity
                             onPress={handleEdit}
-                            className="w-9 h-9 bg-white/80 backdrop-blur rounded-xl items-center justify-center shadow shadow-black/10"
+                            style={styles.headerButton}
                         >
-                            <Ionicons name="pencil" size={16} color="#475569" />
+                            <Ionicons name="pencil" size={18} color="#475569" />
                         </TouchableOpacity>
                         <TouchableOpacity
                             onPress={handleDelete}
-                            className="w-9 h-9 bg-rose-100/80 backdrop-blur rounded-xl items-center justify-center shadow shadow-black/10"
+                            style={[styles.headerButton, styles.deleteButton]}
                         >
-                            <Ionicons name="trash-outline" size={16} color="#e11d48" />
+                            <Ionicons name="trash-outline" size={18} color="#e11d48" />
                         </TouchableOpacity>
                     </View>
                 </View>
 
-                {/* Compact Profile Section */}
-                <View className="flex-row items-center">
-                    <View className="w-16 h-16 rounded-2xl bg-white/90 items-center justify-center mr-4 shadow shadow-black/10 overflow-hidden">
+                {/* Vehicle Profile */}
+                <View style={styles.profileSection}>
+                    <View style={styles.carImageContainer}>
                         <Image
                             source={StaticCarImage}
-                            style={{ width: '75%', height: '75%' }}
+                            style={styles.carImage}
                             resizeMode="contain"
                         />
                     </View>
-                    <View className="flex-1">
-                        <Text className="text-slate-900 text-base font-semibold mb-1">
+                    <View style={styles.profileInfo}>
+                        <Text style={styles.carName}>
                             {car.make} {car.model}
                         </Text>
-                        <Text className="text-slate-600 text-sm mb-2">
+                        <Text style={styles.carSubtext}>
                             {car.production_year} • {garage?.name || 'Garage'}
                         </Text>
 
-                        {/* Inline Status Badge */}
                         <TouchableOpacity
                             onPress={toggleAvailability}
                             disabled={updatingAvailability}
-                            className={`self-start px-3 py-1 rounded-lg ${
-                                isAvailable
-                                    ? 'bg-emerald-100 border border-emerald-200'
-                                    : 'bg-rose-100 border border-rose-200'
-                            }`}
+                            style={[
+                                styles.statusBadge,
+                                isAvailable ? styles.statusBadgeAvailable : styles.statusBadgeUnavailable
+                            ]}
                         >
                             {updatingAvailability ? (
-                                <ActivityIndicator size="small" color={isAvailable ? '#059669' : '#e11d48'} />
+                                <ActivityIndicator size="small" color={isAvailable ? '#10b981' : '#ef4444'} />
                             ) : (
-                                <Text className={`font-medium text-xs ${
-                                    isAvailable ? 'text-emerald-700' : 'text-rose-700'
-                                }`}>
+                                <Text style={[
+                                    styles.statusBadgeText,
+                                    isAvailable ? styles.statusBadgeTextAvailable : styles.statusBadgeTextUnavailable
+                                ]}>
                                     {isAvailable ? 'Available' : 'Unavailable'}
                                 </Text>
                             )}
@@ -283,53 +261,51 @@ export default function CarDetail() {
                 </View>
             </View>
 
-            <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
+            <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
                 {/* Vehicle Details */}
-                <View className="bg-gradient-to-br from-violet-50/50 to-indigo-50/50 mx-6 mt-5 rounded-2xl shadow shadow-black/10 border border-violet-100/50">
-                    <View className="p-5 border-b border-violet-100/50">
-                        <View className="flex-row items-center">
-                            <View className="w-8 h-8 bg-violet-100 rounded-xl items-center justify-center mr-3">
-                                <Ionicons name="car-sport" size={18} color="#7c3aed" />
-                            </View>
-                            <Text className="text-slate-900 font-bold text-lg">Vehicle Details</Text>
+                <View style={styles.section}>
+                    <View style={styles.sectionHeader}>
+                        <View style={[styles.sectionIcon, { backgroundColor: '#eef9ff' }]}>
+                            <Ionicons name="car-sport" size={20} color="#0b6b8a" />
                         </View>
+                        <Text style={styles.sectionTitle}>Vehicle Details</Text>
                     </View>
 
-                    <View className="p-5 space-y-5">
-                        <View className="bg-white/60 rounded-xl p-4">
-                            <View className="flex-row justify-between items-center mb-2">
-                                <Text className="text-slate-600 font-medium text-sm">Make & Model</Text>
-                                <TouchableOpacity onPress={() => handleEditField('makeModel')} className="p-1">
-                                    <Ionicons name="pencil" size={14} color="#8b5cf6" />
+                    <View style={styles.sectionContent}>
+                        <View style={styles.detailCard}>
+                            <View style={styles.detailCardHeader}>
+                                <Text style={styles.detailLabel}>Make & Model</Text>
+                                <TouchableOpacity onPress={() => handleEditField('makeModel')}>
+                                    <Ionicons name="pencil" size={16} color="#0b6b8a" />
                                 </TouchableOpacity>
                             </View>
-                            <Text className="text-slate-900 font-bold text-lg">
+                            <Text style={styles.detailValue}>
                                 {car.make} {car.model}
                             </Text>
                         </View>
 
-                        <View className="flex-row space-x-3">
-                            <View className="flex-1 bg-white/60 rounded-xl p-4">
-                                <View className="flex-row justify-between items-center mb-2">
-                                    <Text className="text-slate-600 font-medium text-sm">Year</Text>
-                                    <TouchableOpacity onPress={() => handleEditField('production_year')} className="p-1">
-                                        <Ionicons name="pencil" size={14} color="#8b5cf6" />
+                        <View style={styles.detailRow}>
+                            <View style={[styles.detailCard, styles.detailCardHalf]}>
+                                <View style={styles.detailCardHeader}>
+                                    <Text style={styles.detailLabel}>Year</Text>
+                                    <TouchableOpacity onPress={() => handleEditField('production_year')}>
+                                        <Ionicons name="pencil" size={16} color="#0b6b8a" />
                                     </TouchableOpacity>
                                 </View>
-                                <Text className="text-slate-900 font-bold text-lg">{car.production_year}</Text>
-                                <Text className={`text-xs mt-1 ${isModern ? 'text-emerald-600' : 'text-amber-600'}`}>
-                                    {`${carAge} yrs${isModern ? ' • Modern' : ''}`}
+                                <Text style={styles.detailValue}>{car.production_year}</Text>
+                                <Text style={[styles.detailSubtext, isModern && styles.detailSubtextModern]}>
+                                    {carAge} yrs{isModern ? ' • Modern' : ''}
                                 </Text>
                             </View>
 
-                            <View className="flex-1 bg-white/60 rounded-xl p-4">
-                                <View className="flex-row justify-between items-center mb-2">
-                                    <Text className="text-slate-600 font-medium text-sm">Tire Type</Text>
-                                    <TouchableOpacity onPress={() => handleEditField('tire_type')} className="p-1">
-                                        <Ionicons name="pencil" size={14} color="#8b5cf6" />
+                            <View style={[styles.detailCard, styles.detailCardHalf]}>
+                                <View style={styles.detailCardHeader}>
+                                    <Text style={styles.detailLabel}>Tire Type</Text>
+                                    <TouchableOpacity onPress={() => handleEditField('tire_type')}>
+                                        <Ionicons name="pencil" size={16} color="#0b6b8a" />
                                     </TouchableOpacity>
                                 </View>
-                                <Text className="text-slate-900 font-bold text-base">
+                                <Text style={styles.detailValue}>
                                     {carDetail?.tire_type || 'Not set'}
                                 </Text>
                             </View>
@@ -338,25 +314,23 @@ export default function CarDetail() {
                 </View>
 
                 {/* Service Information */}
-                <View className="bg-gradient-to-br from-violet-50/50 to-indigo-50/50 mx-6 mt-4 rounded-2xl shadow shadow-black/10 border border-emerald-100/50">
-                    <View className="p-5 border-b border-emerald-100/50">
-                        <View className="flex-row items-center">
-                            <View className="w-8 h-8 bg-emerald-100 rounded-xl items-center justify-center mr-3">
-                                <Ionicons name="build" size={18} color="#059669" />
-                            </View>
-                            <Text className="text-slate-900 font-bold text-lg">Service History</Text>
+                <View style={styles.section}>
+                    <View style={styles.sectionHeader}>
+                        <View style={[styles.sectionIcon, { backgroundColor: '#ecfdf5' }]}>
+                            <Ionicons name="build" size={20} color="#10b981" />
                         </View>
+                        <Text style={styles.sectionTitle}>Service History</Text>
                     </View>
 
-                    <View className="p-5 space-y-4">
-                        <View className="bg-white/60 rounded-xl p-4">
-                            <View className="flex-row justify-between items-center mb-2">
-                                <Text className="text-slate-600 font-medium text-sm">Last Service Date</Text>
-                                <TouchableOpacity onPress={() => handleEditField('last_service')} className="p-1">
-                                    <Ionicons name="pencil" size={14} color="#059669" />
+                    <View style={styles.sectionContent}>
+                        <View style={styles.detailCard}>
+                            <View style={styles.detailCardHeader}>
+                                <Text style={styles.detailLabel}>Last Service Date</Text>
+                                <TouchableOpacity onPress={() => handleEditField('last_service')}>
+                                    <Ionicons name="pencil" size={16} color="#10b981" />
                                 </TouchableOpacity>
                             </View>
-                            <Text className="text-slate-900 font-bold text-base">
+                            <Text style={styles.detailValue}>
                                 {carDetail?.last_service
                                     ? new Date(carDetail.last_service).toLocaleDateString('en-US', {
                                         month: 'short',
@@ -367,14 +341,14 @@ export default function CarDetail() {
                             </Text>
                         </View>
 
-                        <View className="bg-white/60 rounded-xl p-4">
-                            <View className="flex-row justify-between items-center mb-2">
-                                <Text className="text-slate-600 font-medium text-sm">Added to Fleet</Text>
-                                <TouchableOpacity onPress={() => handleEditField('created_at')} className="p-1">
-                                    <Ionicons name="pencil" size={14} color="#059669" />
+                        <View style={styles.detailCard}>
+                            <View style={styles.detailCardHeader}>
+                                <Text style={styles.detailLabel}>Added to Fleet</Text>
+                                <TouchableOpacity onPress={() => handleEditField('created_at')}>
+                                    <Ionicons name="pencil" size={16} color="#10b981" />
                                 </TouchableOpacity>
                             </View>
-                            <Text className="text-slate-900 font-bold text-base">
+                            <Text style={styles.detailValue}>
                                 {new Date(car.created_at).toLocaleDateString('en-US', {
                                     month: 'short',
                                     day: 'numeric',
@@ -386,91 +360,92 @@ export default function CarDetail() {
                 </View>
 
                 {/* Stats Cards */}
-                <View className="mx-6 mt-4 mb-4">
-                    <View className="flex-row items-center mb-3">
-                        <View className="w-7 h-7 bg-sky-100 rounded-lg items-center justify-center mr-3">
-                            <Ionicons name="analytics" size={16} color="#0ea5e9" />
+                <View style={styles.statsSection}>
+                    <View style={styles.statsHeader}>
+                        <View style={[styles.statsIcon, { backgroundColor: '#e0f2fe' }]}>
+                            <Ionicons name="analytics" size={18} color="#0b6b8a" />
                         </View>
-                        <Text className="text-slate-900 font-semibold text-base">Quick Stats</Text>
+                        <Text style={styles.statsTitle}>Quick Stats</Text>
                     </View>
 
-                    <View className="flex-row space-x-3">
-                        <View className="flex-1 bg-gradient-to-br from-violet-50/50 to-indigo-50/50 rounded-2xl p-4 border border-sky-100/50 items-center shadow shadow-black/10"> {/*style={{shadowColor: '#000', shadowOffset: {width: 0, height: 1}, shadowOpacity: 0.05, shadowRadius: 2}}*/}
-                            <View className="w-10 h-10 bg-sky-100 rounded-xl items-center justify-center mb-2">
-                                <Ionicons name="calendar-outline" size={20} color="#0ea5e9" />
+                    <View style={styles.statsContainer}>
+                        <View style={styles.statCard}>
+                            <View style={[styles.statIcon, { backgroundColor: '#e0f2fe' }]}>
+                                <Ionicons name="calendar-outline" size={22} color="#0b6b8a" />
                             </View>
-                            <Text className="text-xl font-bold text-slate-900 mb-1">{carAge}</Text>
-                            <Text className="text-slate-600 text-xs font-medium text-center">Years Old</Text>
+                            <Text style={styles.statValue}>{carAge}</Text>
+                            <Text style={styles.statLabel}>Years Old</Text>
                         </View>
 
-                        <View className={`flex-1 rounded-2xl p-4 items-center shadow shadow-black/10 ${
-                            isAvailable
-                                ? 'bg-gradient-to-br from-emerald-50/80 to-green-50/80 border border-emerald-100/50'
-                                : 'bg-gradient-to-br from-rose-50/80 to-red-50/80 border border-rose-100/50 shadow shadow-black/10'
-                        }`}>
-                            <View className={`w-10 h-10 rounded-xl items-center justify-center mb-2 ${
-                                isAvailable ? 'bg-emerald-100' : 'bg-rose-100'
-                            }`}>
+                        <View style={[
+                            styles.statCard,
+                            isAvailable ? styles.statCardAvailable : styles.statCardUnavailable
+                        ]}>
+                            <View style={[
+                                styles.statIcon,
+                                isAvailable ? { backgroundColor: '#ecfdf5' } : { backgroundColor: '#fef2f2' }
+                            ]}>
                                 <Ionicons
                                     name={isAvailable ? "checkmark-circle" : "close-circle"}
-                                    size={20}
-                                    color={isAvailable ? "#059669" : "#e11d48"}
+                                    size={22}
+                                    color={isAvailable ? "#10b981" : "#ef4444"}
                                 />
                             </View>
-                            <Text className={`text-xl font-bold mb-1 ${
-                                isAvailable ? 'text-emerald-700' : 'text-rose-700'
-                            }`}>
+                            <Text style={[
+                                styles.statValue,
+                                isAvailable ? styles.statValueAvailable : styles.statValueUnavailable
+                            ]}>
                                 {isAvailable ? 'Yes' : 'No'}
                             </Text>
-                            <Text className="text-slate-600 text-xs font-medium text-center">Available</Text>
+                            <Text style={styles.statLabel}>Available</Text>
                         </View>
                     </View>
                 </View>
 
                 {/* Action Buttons */}
-                <View className="mx-6 mb-8">
-                    <Text className="text-gray-900 font-semibold text-lg mb-4">Quick Actions</Text>
-                    <View className="space-y-3">
+                <View style={styles.actionsSection}>
+                    <Text style={styles.actionsTitle}>Quick Actions</Text>
+                    <View style={styles.actionsList}>
                         <TouchableOpacity
                             onPress={handleEdit}
-                            className="bg-white rounded-2xl p-4 shadow shadow-black/10 border border-gray-100 flex-row items-center"
+                            style={styles.actionCard}
                         >
-                            <View className="w-12 h-12 bg-blue-50 rounded-full items-center justify-center mr-4">
-                                <Ionicons name="pencil" size={20} color="#3B82F6" />
+                            <View style={[styles.actionIcon, { backgroundColor: '#eef9ff' }]}>
+                                <Ionicons name="pencil" size={22} color="#0b6b8a" />
                             </View>
-                            <View className="flex-1">
-                                <Text className="text-gray-900 font-medium text-base">Edit Vehicle Details</Text>
-                                <Text className="text-gray-500 text-sm">Update vehicle information</Text>
+                            <View style={styles.actionContent}>
+                                <Text style={styles.actionTitle}>Edit Vehicle Details</Text>
+                                <Text style={styles.actionSubtitle}>Update vehicle information</Text>
                             </View>
-                            <Ionicons name="chevron-forward" size={20} color="#D1D5DB" />
+                            <Ionicons name="chevron-forward" size={20} color="#d1d5db" />
                         </TouchableOpacity>
 
                         <TouchableOpacity
                             onPress={() => Alert.alert('Coming Soon', 'Service history feature will be available soon')}
-                            className="bg-white rounded-2xl p-4 shadow shadow-black/10 border border-gray-100 flex-row items-center"
+                            style={styles.actionCard}
                         >
-                            <View className="w-12 h-12 bg-orange-50 rounded-full items-center justify-center mr-4">
-                                <Ionicons name="build" size={20} color="#F59E0B" />
+                            <View style={[styles.actionIcon, { backgroundColor: '#fef3e6' }]}>
+                                <Ionicons name="build" size={22} color="#f59e0b" />
                             </View>
-                            <View className="flex-1">
-                                <Text className="text-gray-900 font-medium text-base">Service History</Text>
-                                <Text className="text-gray-500 text-sm">View maintenance records</Text>
+                            <View style={styles.actionContent}>
+                                <Text style={styles.actionTitle}>Service History</Text>
+                                <Text style={styles.actionSubtitle}>View maintenance records</Text>
                             </View>
-                            <Ionicons name="chevron-forward" size={20} color="#D1D5DB" />
+                            <Ionicons name="chevron-forward" size={20} color="#d1d5db" />
                         </TouchableOpacity>
 
                         <TouchableOpacity
                             onPress={() => Alert.alert('Coming Soon', 'Share feature will be available soon')}
-                            className="bg-white rounded-2xl p-4 shadow shadow-black/10  border border-gray-100 flex-row items-center"
+                            style={styles.actionCard}
                         >
-                            <View className="w-12 h-12 bg-green-50 rounded-full items-center justify-center mr-4">
-                                <Ionicons name="share-outline" size={20} color="#10B981" />
+                            <View style={[styles.actionIcon, { backgroundColor: '#ecfdf5' }]}>
+                                <Ionicons name="share-outline" size={22} color="#10b981" />
                             </View>
-                            <View className="flex-1">
-                                <Text className="text-gray-900 font-medium text-base">Share Vehicle</Text>
-                                <Text className="text-gray-500 text-sm">Share vehicle details</Text>
+                            <View style={styles.actionContent}>
+                                <Text style={styles.actionTitle}>Share Vehicle</Text>
+                                <Text style={styles.actionSubtitle}>Share vehicle details</Text>
                             </View>
-                            <Ionicons name="chevron-forward" size={20} color="#D1D5DB" />
+                            <Ionicons name="chevron-forward" size={20} color="#d1d5db" />
                         </TouchableOpacity>
                     </View>
                 </View>
@@ -478,3 +453,309 @@ export default function CarDetail() {
         </View>
     );
 }
+
+const styles = StyleSheet.create({
+    container: {
+        flex: 1,
+        backgroundColor: '#f8fafc',
+    },
+    loadingContainer: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        backgroundColor: '#f8fafc',
+    },
+    loadingText: {
+        marginTop: 16,
+        fontSize: 16,
+        color: '#6b7280',
+    },
+    header: {
+        backgroundColor: '#fff',
+        paddingTop: Platform.OS === 'ios' ? 50 : 20,
+        paddingBottom: 20,
+        paddingHorizontal: 20,
+        borderBottomWidth: 1,
+        borderBottomColor: '#f1f5f9',
+    },
+    headerTop: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        marginBottom: 20,
+    },
+    headerButton: {
+        width: 36,
+        height: 36,
+        backgroundColor: '#f1f5f9',
+        borderRadius: 10,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    deleteButton: {
+        backgroundColor: '#fef2f2',
+        marginLeft: 8,
+    },
+    headerActions: {
+        flexDirection: 'row',
+        alignItems: 'center',
+    },
+    profileSection: {
+        flexDirection: 'row',
+        alignItems: 'center',
+    },
+    carImageContainer: {
+        width: 64,
+        height: 64,
+        borderRadius: 16,
+        backgroundColor: '#f8fafc',
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginRight: 16,
+        overflow: 'hidden',
+    },
+    carImage: {
+        width: '75%',
+        height: '75%',
+    },
+    profileInfo: {
+        flex: 1,
+    },
+    carName: {
+        fontSize: 20,
+        fontWeight: '600',
+        color: '#0f1724',
+        marginBottom: 4,
+    },
+    carSubtext: {
+        fontSize: 14,
+        color: '#6b7280',
+        marginBottom: 12,
+    },
+    statusBadge: {
+        alignSelf: 'flex-start',
+        paddingHorizontal: 12,
+        paddingVertical: 6,
+        borderRadius: 8,
+        borderWidth: 1,
+    },
+    statusBadgeAvailable: {
+        backgroundColor: '#ecfdf5',
+        borderColor: '#10b981',
+    },
+    statusBadgeUnavailable: {
+        backgroundColor: '#fef2f2',
+        borderColor: '#ef4444',
+    },
+    statusBadgeText: {
+        fontSize: 12,
+        fontWeight: '600',
+    },
+    statusBadgeTextAvailable: {
+        color: '#10b981',
+    },
+    statusBadgeTextUnavailable: {
+        color: '#ef4444',
+    },
+    scrollView: {
+        flex: 1,
+    },
+    section: {
+        backgroundColor: '#fff',
+        marginHorizontal: 16,
+        marginTop: 16,
+        borderRadius: 16,
+        borderWidth: 1,
+        borderColor: '#f1f5f9',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.04,
+        shadowRadius: 4,
+        elevation: 2,
+        overflow: 'hidden',
+    },
+    sectionHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        padding: 20,
+        borderBottomWidth: 1,
+        borderBottomColor: '#f1f5f9',
+    },
+    sectionIcon: {
+        width: 32,
+        height: 32,
+        borderRadius: 10,
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginRight: 12,
+    },
+    sectionTitle: {
+        fontSize: 18,
+        fontWeight: '600',
+        color: '#0f1724',
+    },
+    sectionContent: {
+        padding: 20,
+    },
+    detailCard: {
+        backgroundColor: '#f8fafc',
+        borderRadius: 12,
+        padding: 16,
+        marginBottom: 12,
+    },
+    detailCardHalf: {
+        flex: 1,
+        marginHorizontal: 6,
+    },
+    detailCardHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 8,
+    },
+    detailLabel: {
+        fontSize: 13,
+        fontWeight: '500',
+        color: '#6b7280',
+    },
+    detailValue: {
+        fontSize: 18,
+        fontWeight: '600',
+        color: '#0f1724',
+    },
+    detailSubtext: {
+        fontSize: 12,
+        color: '#f59e0b',
+        marginTop: 4,
+    },
+    detailSubtextModern: {
+        color: '#10b981',
+    },
+    detailRow: {
+        flexDirection: 'row',
+        marginTop: 12,
+    },
+    statsSection: {
+        marginHorizontal: 16,
+        marginTop: 16,
+    },
+    statsHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginBottom: 12,
+    },
+    statsIcon: {
+        width: 28,
+        height: 28,
+        borderRadius: 8,
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginRight: 12,
+    },
+    statsTitle: {
+        fontSize: 16,
+        fontWeight: '600',
+        color: '#0f1724',
+    },
+    statsContainer: {
+        flexDirection: 'row',
+        gap: 12,
+    },
+    statCard: {
+        flex: 1,
+        backgroundColor: '#fff',
+        borderRadius: 16,
+        padding: 20,
+        alignItems: 'center',
+        borderWidth: 1,
+        borderColor: '#f1f5f9',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.04,
+        shadowRadius: 4,
+        elevation: 2,
+    },
+    statCardAvailable: {
+        backgroundColor: '#ecfdf5',
+        borderColor: '#10b981',
+    },
+    statCardUnavailable: {
+        backgroundColor: '#fef2f2',
+        borderColor: '#ef4444',
+    },
+    statIcon: {
+        width: 40,
+        height: 40,
+        borderRadius: 12,
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginBottom: 12,
+    },
+    statValue: {
+        fontSize: 24,
+        fontWeight: '700',
+        color: '#0f1724',
+        marginBottom: 4,
+    },
+    statValueAvailable: {
+        color: '#10b981',
+    },
+    statValueUnavailable: {
+        color: '#ef4444',
+    },
+    statLabel: {
+        fontSize: 12,
+        fontWeight: '500',
+        color: '#6b7280',
+        textAlign: 'center',
+    },
+    actionsSection: {
+        marginHorizontal: 16,
+        marginTop: 16,
+        marginBottom: 32,
+    },
+    actionsTitle: {
+        fontSize: 18,
+        fontWeight: '600',
+        color: '#0f1724',
+        marginBottom: 16,
+    },
+    actionsList: {
+        gap: 12,
+    },
+    actionCard: {
+        backgroundColor: '#fff',
+        borderRadius: 16,
+        padding: 16,
+        flexDirection: 'row',
+        alignItems: 'center',
+        borderWidth: 1,
+        borderColor: '#f1f5f9',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.04,
+        shadowRadius: 4,
+        elevation: 2,
+    },
+    actionIcon: {
+        width: 48,
+        height: 48,
+        borderRadius: 12,
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginRight: 16,
+    },
+    actionContent: {
+        flex: 1,
+    },
+    actionTitle: {
+        fontSize: 16,
+        fontWeight: '500',
+        color: '#0f1724',
+        marginBottom: 4,
+    },
+    actionSubtitle: {
+        fontSize: 14,
+        color: '#6b7280',
+    },
+});

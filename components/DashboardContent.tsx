@@ -1,5 +1,5 @@
-import React, { useState, useRef } from 'react';
-import { Button, FlatList, Text, TextInput, View, Image, TouchableOpacity, Pressable, ScrollView, Dimensions } from 'react-native';
+import React, { useRef, useState } from 'react';
+import { Dimensions, Image, Pressable, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 
 // @ts-ignore
 import StaticCarImage from '@/assets/images/carTypes/removebg/sedan.png';
@@ -39,13 +39,13 @@ interface DashboardContentProps {
 }
 
 const DashboardContent: React.FC<DashboardContentProps> = ({
-                                                               postText,
-                                                               setPostText,
-                                                               handleAddPost,
-                                                               garages,
-                                                               onAddVehiclePress,
-                                                               onCarPress,
-                                                           }) => {
+    postText,
+    setPostText,
+    handleAddPost,
+    garages,
+    onAddVehiclePress,
+    onCarPress,
+}) => {
     const [currentGarageIndex, setCurrentGarageIndex] = useState(0);
     const garageScrollRef = useRef<ScrollView>(null);
 
@@ -55,17 +55,12 @@ const DashboardContent: React.FC<DashboardContentProps> = ({
         post.cars?.availability === true
     ).length;
 
-    const recentPosts = allCars.filter(post => {
-        const postDate = new Date(post.created_at);
-        const weekAgo = new Date();
-        weekAgo.setDate(weekAgo.getDate() - 7);
-        return postDate >= weekAgo;
-    }).length;
-
-    const currentYear = new Date().getFullYear();
-    const modernVehicles = allCars.filter(post =>
-        parseInt(post.production_year) >= currentYear - 10
-    ).length;
+    // Simplified metrics - only show essential information
+    const essentialMetrics = [
+        { id: 'total', title: 'Total Vehicles', value: totalPosts, icon: '🚗', color: '#0b6b8a' },
+        { id: 'available', title: 'Available', value: availableVehicles, icon: '✓', color: '#10b981' },
+        { id: 'garages', title: 'Garages', value: garages.length, icon: '🏠', color: '#6366f1' },
+    ];
 
     const handleGarageScroll = (event: any) => {
         const scrollX = event.nativeEvent.contentOffset.x;
@@ -96,54 +91,66 @@ const DashboardContent: React.FC<DashboardContentProps> = ({
                 key={garage.id}
                 style={{
                     width: GARAGE_CARD_WIDTH,
-                    marginHorizontal: 8
+                    marginHorizontal: 8,
                 }}
             >
-                <View className={`${isActive ? 'bg-gradient-to-tl from-sky-400 to-purple-400' : 'bg-gradient-to-tr from-gray-300 via-gray-300 to-gray-300'} rounded-xl p-6 mb-4 transition-all duration-300`}>
-                    <View className="flex-row items-center justify-between mb-3">
-                        <View className="flex-row items-center">
-                            <View className="w-12 h-12 bg-white bg-opacity-20 rounded-lg flex items-center justify-center mr-3">
-                                <Text className="text-white text-xl">🏠</Text>
+                <View style={{
+                    backgroundColor: isActive ? '#f3fbff' : '#ffffff',
+                    borderRadius: 16,
+                    padding: 20,
+                    marginBottom: 16,
+                    shadowColor: '#000',
+                    shadowOffset: { width: 0, height: 2 },
+                    shadowOpacity: isActive ? 0.08 : 0.04,
+                    shadowRadius: isActive ? 8 : 4,
+                    elevation: isActive ? 3 : 1,
+                    borderWidth: 1,
+                    borderColor: isActive ? '#e6f7ff' : '#f1f5f9',
+                }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
+                            <View style={{
+                                width: 48,
+                                height: 48,
+                                borderRadius: 12,
+                                backgroundColor: isActive ? '#eef9ff' : '#f6fbff',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                marginRight: 12
+                            }}>
+                                <Text style={{ color: '#2b2b2b', fontSize: 20 }}>🏠</Text>
                             </View>
-                            <View>
-                                <Text className="text-white text-2xl font-bold">{garage.name}</Text>
-                                <Text className="text-blue-100 text-sm">{garageCars.length} vehicles</Text>
+                            <View style={{ flex: 1 }}>
+                                <Text style={{ color: '#0f1724', fontSize: 18, fontWeight: '600', marginBottom: 4 }}>{garage.name}</Text>
+                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                                        <View style={{ 
+                                            width: 6, 
+                                            height: 6, 
+                                            borderRadius: 3, 
+                                            backgroundColor: garageAvailable > 0 ? '#10b981' : '#6b7280',
+                                            marginRight: 6 
+                                        }} />
+                                        <Text style={{ color: '#6b7280', fontSize: 13 }}>
+                                            {garageAvailable} of {garageCars.length} available
+                                        </Text>
+                                    </View>
+                                </View>
                             </View>
-                        </View>
-                        <View className="items-end">
-                            <Text className="text-white text-3xl font-bold">{garageAvailable}</Text>
-                            <Text className="text-blue-100 text-xs">available</Text>
                         </View>
                     </View>
-                    <View className="flex-row justify-between items-center">
-                        <View className="flex-row items-center">
-                            <View className="w-2 h-2 bg-green-400 rounded-full mr-2"></View>
-                            <Text className="text-blue-100 text-sm">All systems operational</Text>
-                        </View>
-                        <TouchableOpacity
-                            className="bg-white bg-opacity-20 px-3 py-1 rounded-lg"
-                            onPress={() => onAddVehiclePress(garage.id)}
-                        >
-                            <Text className="text-white text-sm font-medium">Add Vehicle</Text>
-                        </TouchableOpacity>
-                    </View>
-                </View>
 
-                <View className="flex-row justify-center gap-2 mb-4">
-                    <View className="bg-green-50 border border-green-200 rounded-lg p-3 flex-1 max-w-[30%]">
-                        <Text className="text-xl font-bold text-green-600">{garageAvailable}</Text>
-                        <Text className="text-xs font-medium text-green-800">Available</Text>
-                    </View>
-                    <View className="bg-orange-50 border border-orange-200 rounded-lg p-3 flex-1 max-w-[30%]">
-                        <Text className="text-xl font-bold text-orange-600">{garageCars.length}</Text>
-                        <Text className="text-xs font-medium text-orange-800">Total</Text>
-                    </View>
-                    <View className="bg-purple-50 border border-purple-200 rounded-lg p-3 flex-1 max-w-[30%]">
-                        <Text className="text-xl font-bold text-purple-600">
-                            {garageCars.filter(car => parseInt(car.production_year) >= currentYear - 10).length}
-                        </Text>
-                        <Text className="text-xs font-medium text-purple-800">Modern</Text>
-                    </View>
+                    <TouchableOpacity
+                        style={{
+                            backgroundColor: '#0b6b8a',
+                            paddingVertical: 12,
+                            borderRadius: 10,
+                            alignItems: 'center',
+                        }}
+                        onPress={() => onAddVehiclePress(garage.id)}
+                    >
+                        <Text style={{ color: '#fff', fontSize: 14, fontWeight: '600' }}>Add Vehicle</Text>
+                    </TouchableOpacity>
                 </View>
             </View>
         );
@@ -151,20 +158,40 @@ const DashboardContent: React.FC<DashboardContentProps> = ({
 
     const renderVehicleCard = (item: Post) => {
         const carDetail = item.cars;
+        const available = !!carDetail?.availability;
+
         return (
             <Pressable
                 key={item.id}
-                className={`bg-gradient-to-tl ${carDetail?.availability ? 'from-success to-gray-50 border border-success' : 'from-gray-100 to-gray-50 border border-error'} rounded-lg mb-4 overflow-hidden p-4 active:opacity-70 active:scale-98`}
                 onPress={() => onCarPress(item.id, item)}
                 style={({ pressed }) => [
                     {
-                        opacity: pressed ? 0.7 : 1,
+                        opacity: pressed ? 0.95 : 1,
                         transform: [{ scale: pressed ? 0.98 : 1 }],
-                    }
+                        marginBottom: 12,
+                        borderRadius: 16,
+                        backgroundColor: '#fff',
+                        shadowColor: '#000',
+                        shadowOffset: { width: 0, height: 2 },
+                        shadowOpacity: 0.06,
+                        shadowRadius: 8,
+                        elevation: 2,
+                        borderWidth: 1,
+                        borderColor: '#f1f5f9',
+                    },
                 ]}
             >
-                <View className="flex-row mb-3">
-                    <View className="w-20 h-20 bg-white rounded-lg overflow-hidden mr-3">
+                <View style={{ flexDirection: 'row', padding: 16, alignItems: 'center' }}>
+                    <View style={{ 
+                        width: 70, 
+                        height: 70, 
+                        backgroundColor: '#f8fafc', 
+                        borderRadius: 12, 
+                        overflow: 'hidden', 
+                        marginRight: 14, 
+                        alignItems: 'center', 
+                        justifyContent: 'center' 
+                    }}>
                         <Image
                             style={{ width: '100%', height: '100%' }}
                             source={StaticCarImage}
@@ -172,57 +199,40 @@ const DashboardContent: React.FC<DashboardContentProps> = ({
                         />
                     </View>
 
-                    <View className="flex-1 justify-center">
-                        <Text className="text-lg font-bold text-gray-900 mb-1">
-                            {item.make} {item.model}
-                        </Text>
-                        <Text className="text-sm text-gray-600 mb-1">
-                            Year: {item.production_year}
-                        </Text>
-                        <Text className="text-xs text-blue-600 font-medium">
-                            {carDetail?.availability ? 'Available Now' : 'Not Available'}
-                        </Text>
-                    </View>
-
-                    <View className="justify-center">
-                        <Text className="text-gray-400 text-xl">›</Text>
-                    </View>
-                </View>
-
-                <View className="border-t border-gray-100 pt-3">
-                    <View className="flex-row justify-between mb-2">
-                        <View className="flex-row items-center">
-                            <View className="w-3 h-3 bg-blue-500 rounded-full mr-2"></View>
-                            <Text className="text-sm text-gray-600">Tire:</Text>
-                        </View>
-                        <Text className="text-sm font-medium text-gray-900">
-                            {carDetail?.tire_type || 'Unknown'}
-                        </Text>
-                    </View>
-                    <View className="flex-row justify-between mb-2">
-                        <View className="flex-row items-center">
-                            <View className="w-3 h-3 bg-orange-500 rounded-full mr-2"></View>
-                            <Text className="text-sm text-gray-600">Last Service:</Text>
-                        </View>
-                        <Text className="text-sm font-medium text-gray-900">
-                            {carDetail?.last_service ? new Date(carDetail.last_service).toLocaleDateString() : 'N/A'}
-                        </Text>
-                    </View>
-                    <View className="flex-row justify-between mb-2">
-                        <View className="flex-row items-center">
-                            <View className="w-3 h-3 bg-green-500 rounded-full mr-2"></View>
-                            <Text className="text-sm text-gray-600">Availability:</Text>
-                        </View>
-                        <Text className={`text-sm font-medium ${carDetail?.availability ? 'text-green-600' : 'text-red-600'}`}>
-                            {carDetail?.availability ? 'Available' : 'Not Available'}
-                        </Text>
-                    </View>
-                    <View className="flex-row justify-between items-center">
-                        <View className="flex-row items-center">
-                            <Text className="text-xs text-gray-400">
-                                Posted: {new Date(item.created_at).toLocaleDateString()}
+                    <View style={{ flex: 1 }}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+                            <Text style={{ fontSize: 17, fontWeight: '600', color: '#0f1724' }}>
+                                {item.make} {item.model}
                             </Text>
+                            <View style={{
+                                backgroundColor: available ? '#ecfdf5' : '#fef2f2',
+                                paddingHorizontal: 8,
+                                paddingVertical: 4,
+                                borderRadius: 8,
+                            }}>
+                                <Text style={{ 
+                                    fontSize: 11, 
+                                    fontWeight: '600', 
+                                    color: available ? '#10b981' : '#ef4444',
+                                    textTransform: 'uppercase',
+                                    letterSpacing: 0.5,
+                                }}>
+                                    {available ? 'Available' : 'Unavailable'}
+                                </Text>
+                            </View>
                         </View>
+                        <Text style={{ fontSize: 14, color: '#6b7280', marginBottom: 8 }}>
+                            {item.production_year}
+                        </Text>
+                        {carDetail?.last_service && (
+                            <Text style={{ fontSize: 12, color: '#9ca3af' }}>
+                                Last service: {new Date(carDetail.last_service).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                            </Text>
+                        )}
+                    </View>
+
+                    <View style={{ justifyContent: 'center', marginLeft: 8 }}>
+                        <Text style={{ color: '#d1d5db', fontSize: 24 }}>›</Text>
                     </View>
                 </View>
             </Pressable>
@@ -231,17 +241,17 @@ const DashboardContent: React.FC<DashboardContentProps> = ({
 
     if (garages.length === 0) {
         return (
-            <ScrollView className="flex-1 p-4">
-                <View className="bg-gray-50 border border-gray-200 rounded-xl p-8 items-center">
-                    <Text className="text-gray-500 text-xl mb-4">No garages found</Text>
-                    <Text className="text-gray-400 text-center mb-4">
+            <ScrollView style={{ flex: 1, padding: 16, backgroundColor: '#f8fafc' }}>
+                <View style={{ backgroundColor: '#fff', borderWidth: 1, borderColor: '#f1f5f9', borderRadius: 16, padding: 20, alignItems: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.04, shadowRadius: 6 }}>
+                    <Text style={{ color: '#374151', fontSize: 16, marginBottom: 10 }}>No garages found</Text>
+                    <Text style={{ color: '#6b7280', textAlign: 'center', marginBottom: 14 }}>
                         Create your first garage to start managing your vehicle fleet
                     </Text>
                     <TouchableOpacity
-                        className="bg-blue-500 px-6 py-3 rounded-lg"
+                        style={{ backgroundColor: '#0b6b8a', paddingHorizontal: 18, paddingVertical: 10, borderRadius: 8 }}
                         onPress={() => onAddVehiclePress()}
                     >
-                        <Text className="text-white font-medium">Create Garage</Text>
+                        <Text style={{ color: '#fff', fontWeight: '600' }}>Create Garage</Text>
                     </TouchableOpacity>
                 </View>
             </ScrollView>
@@ -251,74 +261,46 @@ const DashboardContent: React.FC<DashboardContentProps> = ({
     const currentGarage = garages[currentGarageIndex];
 
     return (
-        <ScrollView className="flex-1 bg-gray-50">
-            <View className="pb-2">
-                <View className="bg-gradient-to-tr from-purple-400 to-red-400 rounded-b-xl p-8 mb-4 shadow-xl">
-                    <View className="flex-row items-center justify-between mb-3">
-                        <View className="flex-row items-center">
-                            <View className="w-12 h-12 bg-white bg-opacity-20 rounded-lg flex items-center justify-center mr-3">
-                                <Text className="text-white text-xl">📊</Text>
-                            </View>
-                            <View>
-                                <Text className="text-white text-2xl font-bold">Overview (user)</Text>
-                                <Text className="text-pink-100 text-sm">{garages.length} Garages Total</Text>
-                            </View>
-                        </View>
-                        <View className="items-end">
-                            <Text className="text-white text-3xl font-bold">{totalPosts}</Text>
-                            <Text className="text-pink-100 text-xs">total vehicles</Text>
-                        </View>
-                    </View>
+        <ScrollView style={{ flex: 1, backgroundColor: '#f8fafc' }}>
+            <View style={{ padding: 16 }}>
+                {/* Simplified Header */}
+                <View style={{ marginBottom: 20 }}>
+                    <Text style={{ color: '#0f1724', fontSize: 24, fontWeight: '700', marginBottom: 4 }}>Dashboard</Text>
+                    <Text style={{ color: '#6b7280', fontSize: 14 }}>Manage your vehicle fleet</Text>
                 </View>
 
-                <View className="flex-row flex-wrap justify-center gap-3 mb-4">
-                    <View className="bg-green-50 border border-green-200 rounded-xl p-3 w-[42%] h-24">
-                        <View className="flex-row items-center justify-between mb-2">
-                            <Text className="text-2xl font-bold text-green-600">{availableVehicles}</Text>
-                            <View className="w-8 h-8 bg-green-300 rounded-full flex items-center justify-center">
-                                <Text className="text-white text-sm">✓</Text>
+                {/* Essential Metrics - Clean 3-card layout */}
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 24, gap: 12 }}>
+                    {essentialMetrics.map((metric) => (
+                        <View
+                            key={metric.id}
+                            style={{
+                                flex: 1,
+                                backgroundColor: '#fff',
+                                borderRadius: 16,
+                                padding: 16,
+                                borderWidth: 1,
+                                borderColor: '#f1f5f9',
+                                shadowColor: '#000',
+                                shadowOffset: { width: 0, height: 1 },
+                                shadowOpacity: 0.04,
+                                shadowRadius: 4,
+                                elevation: 2,
+                            }}
+                        >
+                            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
+                                <Text style={{ fontSize: 20, marginRight: 6 }}>{metric.icon}</Text>
+                                <Text style={{ fontSize: 11, color: '#6b7280', fontWeight: '500', textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                                    {metric.title}
+                                </Text>
                             </View>
+                            <Text style={{ fontSize: 28, color: metric.color, fontWeight: '700' }}>{metric.value}</Text>
                         </View>
-                        <Text className="text-sm font-medium text-green-800">Available</Text>
-                        <Text className="text-xs text-green-600">ready to go</Text>
-                    </View>
-
-                    <View className="bg-orange-50 border border-orange-200 rounded-xl p-3 w-[42%] h-24">
-                        <View className="flex-row items-center justify-between mb-2">
-                            <Text className="text-2xl font-bold text-orange-600">{recentPosts}</Text>
-                            <View className="w-8 h-8 bg-orange-200 rounded-full flex items-center justify-center">
-                                <Text className="text-white text-sm">📅</Text>
-                            </View>
-                        </View>
-                        <Text className="text-sm font-medium text-orange-800">Recent</Text>
-                        <Text className="text-xs text-orange-600">this week</Text>
-                    </View>
-
-                    <View className="bg-purple-50 border border-purple-200 rounded-xl p-3 w-[42%] h-24">
-                        <View className="flex-row items-center justify-between mb-2">
-                            <Text className="text-2xl font-bold text-purple-600">{modernVehicles}</Text>
-                            <View className="w-8 h-8 bg-purple-200 rounded-full flex items-center justify-center">
-                                <Text className="text-white text-sm">✨</Text>
-                            </View>
-                        </View>
-                        <Text className="text-sm font-medium text-purple-800">Modern</Text>
-                        <Text className="text-xs text-purple-600">2014 or newer</Text>
-                    </View>
-
-                    <View className="bg-blue-50 border border-blue-200 rounded-xl p-3 w-[42%] h-24">
-                        <View className="flex-row items-center justify-between mb-2">
-                            <Text className="text-2xl font-bold text-blue-600">{garages.length}</Text>
-                            <View className="w-8 h-8 bg-blue-200 rounded-full flex items-center justify-center">
-                                <Text className="text-white text-sm">🏠</Text>
-                            </View>
-                        </View>
-                        <Text className="text-sm font-medium text-blue-800">Garages</Text>
-                        <Text className="text-xs text-blue-600">locations</Text>
-                    </View>
+                    ))}
                 </View>
             </View>
 
-            <View className="mb-4">
+            <View style={{ marginBottom: 12 }}>
                 <ScrollView
                     ref={garageScrollRef}
                     horizontal
@@ -338,39 +320,66 @@ const DashboardContent: React.FC<DashboardContentProps> = ({
                     {garages.map((garage, index) => renderGarageCard(garage, index))}
                 </ScrollView>
 
-                <View className="flex-row justify-center items-center">
+                <View style={{ flexDirection: 'row', justifyContent: 'center', alignItems: 'center', marginTop: 10 }}>
                     {garages.map((_, index) => (
                         <TouchableOpacity
                             key={index}
                             onPress={() => scrollToGarage(index)}
-                            className={`w-2 h-2 rounded-full mx-1 ${
-                                index === currentGarageIndex ? 'bg-blue-400' : 'bg-gray-200'
-                            }`}
+                            style={{
+                                width: 8,
+                                height: 8,
+                                borderRadius: 8,
+                                marginHorizontal: 6,
+                                backgroundColor: index === currentGarageIndex ? '#0b6b8a' : '#d1d5db',
+                            }}
                         />
                     ))}
                 </View>
 
-                <View className="items-center mt-2">
-                    <Text className="text-sm text-gray-500">
+                <View style={{ alignItems: 'center', marginTop: 8 }}>
+                    <Text style={{ fontSize: 12, color: '#6b7280' }}>
                         {currentGarageIndex + 1} of {garages.length}
                     </Text>
                 </View>
             </View>
 
-            <View className="px-4 pb-4">
+            <View style={{ paddingHorizontal: 16, paddingBottom: 28 }}>
                 {currentGarage?.cars.length > 0 ? (
-                    currentGarage.cars.map(vehicle => renderVehicleCard(vehicle))
+                    <>
+                        <Text style={{ 
+                            color: '#0f1724', 
+                            fontSize: 18, 
+                            fontWeight: '600', 
+                            marginBottom: 16,
+                            marginTop: 8 
+                        }}>
+                            Vehicles
+                        </Text>
+                        {currentGarage.cars.map(vehicle => renderVehicleCard(vehicle))}
+                    </>
                 ) : (
-                    <View className="bg-white border border-gray-200 rounded-xl p-6 items-center">
-                        <Text className="text-gray-500 text-lg mb-2">No vehicles in this garage</Text>
-                        <Text className="text-gray-400 text-center mb-4">
+                    <View style={{ 
+                        backgroundColor: '#fff', 
+                        borderWidth: 1, 
+                        borderColor: '#f1f5f9', 
+                        borderRadius: 16, 
+                        padding: 32, 
+                        alignItems: 'center',
+                        shadowColor: '#000', 
+                        shadowOffset: { width: 0, height: 1 }, 
+                        shadowOpacity: 0.04, 
+                        shadowRadius: 6 
+                    }}>
+                        <Text style={{ fontSize: 48, marginBottom: 16 }}>🚗</Text>
+                        <Text style={{ color: '#374151', fontSize: 18, fontWeight: '600', marginBottom: 8 }}>No vehicles yet</Text>
+                        <Text style={{ color: '#6b7280', textAlign: 'center', marginBottom: 20, fontSize: 14 }}>
                             Add your first vehicle to get started
                         </Text>
                         <TouchableOpacity
-                            className="bg-blue-500 px-4 py-2 rounded-lg"
+                            style={{ backgroundColor: '#0b6b8a', paddingHorizontal: 20, paddingVertical: 12, borderRadius: 10 }}
                             onPress={() => onAddVehiclePress(currentGarage?.id)}
                         >
-                            <Text className="text-white text-sm font-medium">Add First Vehicle</Text>
+                            <Text style={{ color: '#fff', fontSize: 14, fontWeight: '600' }}>Add First Vehicle</Text>
                         </TouchableOpacity>
                     </View>
                 )}

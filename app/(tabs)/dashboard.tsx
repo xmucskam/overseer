@@ -1,7 +1,9 @@
-import React, { useEffect, useState } from 'react';
-import { supabase } from '../../utils/supabase';
-import DashboardContent from '../../components/DashboardContent';
+//app/(tabs)/dashboard.tsx
+
 import { router } from 'expo-router';
+import React, { useEffect, useState } from 'react';
+import DashboardContent from '../../components/DashboardContent';
+import { supabase } from '../../utils/supabase';
 
 interface VehicleDetails {
     tire_type: string;

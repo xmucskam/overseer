@@ -1,16 +1,18 @@
-import React, { useState, useEffect } from 'react';
+import { supabase } from '@/utils/supabase';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import React, { useEffect, useState } from 'react';
 import {
-    View,
+    Alert,
+    KeyboardAvoidingView,
+    Platform,
+    ScrollView,
     Text,
     TextInput,
     TouchableOpacity,
-    ScrollView,
-    Alert,
-    KeyboardAvoidingView,
-    Platform
+    View,
+    StyleSheet,
+    ActivityIndicator,
 } from 'react-native';
-import { useRouter, useLocalSearchParams } from 'expo-router';
-import { supabase } from '@/utils/supabase';
 
 interface Garage {
     id: string;
@@ -37,7 +39,10 @@ export default function AddVehicle() {
 
     useEffect(() => {
         fetchGarages();
-    }, []);
+        if (garageId) {
+            setFormData(prev => ({ ...prev, garage_id: String(garageId) }));
+        }
+    }, [garageId]);
 
     const fetchGarages = async () => {
         try {
@@ -48,8 +53,6 @@ export default function AddVehicle() {
                 setLoadingGarages(false);
                 return;
             }
-
-            console.log('Fetching garages for user:', user.id);
 
             const { data, error } = await supabase
                 .from('garages')
@@ -62,8 +65,6 @@ export default function AddVehicle() {
                 await createDefaultGarage(user.id);
                 return;
             }
-
-            console.log('Garages fetched:', data);
 
             if (!data || data.length === 0) {
                 await createDefaultGarage(user.id);
@@ -91,8 +92,6 @@ export default function AddVehicle() {
 
             if (!userId) return;
 
-            console.log('Creating default garage for user:', userId);
-
             const { data, error } = await supabase
                 .from('garages')
                 .insert([{
@@ -109,7 +108,6 @@ export default function AddVehicle() {
             }
 
             if (data) {
-                console.log('Default garage created:', data);
                 setGarages([data]);
                 setFormData(prev => ({ ...prev, garage_id: data.id }));
             }
@@ -119,39 +117,47 @@ export default function AddVehicle() {
     };
 
     const createNewGarage = async () => {
-        Alert.prompt(
-            'Create New Garage',
-            'Enter garage name:',
-            async (garageName) => {
-                if (!garageName?.trim()) return;
+        if (Platform.OS === 'ios') {
+            Alert.prompt(
+                'Create New Garage',
+                'Enter garage name:',
+                async (garageName) => {
+                    if (!garageName?.trim()) return;
 
-                try {
-                    const { data: { user } } = await supabase.auth.getUser();
-                    if (!user) return;
+                    try {
+                        const { data: { user } } = await supabase.auth.getUser();
+                        if (!user) return;
 
-                    const { data, error } = await supabase
-                        .from('garages')
-                        .insert([{
-                            name: garageName.trim(),
-                            user_id: user.id,
-                            created_at: new Date().toISOString()
-                        }])
-                        .select()
-                        .single();
+                        const { data, error } = await supabase
+                            .from('garages')
+                            .insert([{
+                                name: garageName.trim(),
+                                user_id: user.id,
+                                created_at: new Date().toISOString()
+                            }])
+                            .select()
+                            .single();
 
-                    if (error) {
+                        if (error) {
+                            Alert.alert('Error', 'Failed to create garage');
+                            return;
+                        }
+
+                        setGarages(prev => [...prev, data]);
+                        setFormData(prev => ({ ...prev, garage_id: data.id }));
+                        Alert.alert('Success', 'Garage created successfully!');
+                    } catch (error) {
                         Alert.alert('Error', 'Failed to create garage');
-                        return;
                     }
-
-                    setGarages(prev => [...prev, data]);
-                    setFormData(prev => ({ ...prev, garage_id: data.id }));
-                    Alert.alert('Success', 'Garage created successfully!');
-                } catch (error) {
-                    Alert.alert('Error', 'Failed to create garage');
                 }
-            }
-        );
+            );
+        } else {
+            Alert.alert(
+                'Create New Garage',
+                'Garage creation via prompt is only supported on iOS. Please create a garage from the Garages screen.',
+                [{ text: 'OK' }]
+            );
+        }
     };
 
     const handleInputChange = (field: string, value: string | boolean) => {
@@ -207,21 +213,16 @@ export default function AddVehicle() {
                 return;
             }
 
-            console.log('Adding vehicle for user:', user.id);
-            console.log('Form data:', formData);
-
             const carPayload = {
                 garage_id: formData.garage_id,
                 make: formData.make.trim(),
                 model: formData.model.trim(),
-                production_year: parseInt(formData.production_year), // int4 in your DB
+                production_year: parseInt(formData.production_year),
                 tire_type: formData.tire_type.trim(),
-                last_service: formData.last_service, // date format
-                availability: formData.availability, // bool
+                last_service: formData.last_service,
+                availability: formData.availability,
                 created_at: new Date().toISOString()
             };
-
-            console.log('Inserting car:', carPayload);
 
             const { data: carData, error: carError } = await supabase
                 .from('cars')
@@ -236,8 +237,7 @@ export default function AddVehicle() {
                 return;
             }
 
-            console.log('Vehicle added successfully:', carData);
-
+            router.replace('/(tabs)/dashboard');
             Alert.alert('Success', 'Vehicle added successfully!', [
                 {
                     text: 'OK',
@@ -245,9 +245,9 @@ export default function AddVehicle() {
                 }
             ]);
 
-        } catch (error) {
+        } catch (error: any) {
             console.error('Submit error:', error);
-            // Alert.alert('Error', `Something went wrong: ${error.message || 'Please try again.'}`);
+            Alert.alert('Error', `Something went wrong: ${error?.message || 'Please try again.'}`);
         } finally {
             setLoading(false);
         }
@@ -255,74 +255,69 @@ export default function AddVehicle() {
 
     if (loadingGarages) {
         return (
-            <View className="flex-1 bg-gray-50 justify-center items-center">
-                <View className="w-16 h-16 bg-blue-500 rounded-full flex items-center justify-center mb-4">
-                    <Text className="text-white text-xl">🚗</Text>
+            <View style={styles.loadingContainer}>
+                <View style={styles.loadingIcon}>
+                    <Text style={styles.loadingEmoji}>🚗</Text>
                 </View>
-                <Text className="text-gray-500 text-lg">Loading garages...</Text>
+                <Text style={styles.loadingText}>Loading garages...</Text>
             </View>
         );
     }
 
     return (
         <KeyboardAvoidingView
-            style={{ flex: 1 }}
+            style={styles.container}
             behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         >
-            <ScrollView className="flex-1 bg-gray-50">
-                <View className="bg-gradient-to-tr from-sky-500 via-blue-500 to-indigo-500 pt-12 pb-8 px-6">
-                    <View className="flex-row items-center justify-between mb-4">
-                        <TouchableOpacity onPress={() => router.back()}>
-                            <View className="w-10 h-10 bg-white bg-opacity-20 rounded-lg flex items-center justify-center">
-                                <Text className="text-white text-lg">←</Text>
-                            </View>
+            <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
+                {/* Header */}
+                <View style={styles.header}>
+                    <View style={styles.headerTop}>
+                        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+                            <Text style={styles.backButtonText}>←</Text>
                         </TouchableOpacity>
-                        <View className="flex-row items-center">
-                            <View className="w-10 h-10 bg-white bg-opacity-20 rounded-lg flex items-center justify-center">
-                                <Text className="text-white text-xl">🚗</Text>
-                            </View>
+                        <View style={styles.headerIcon}>
+                            <Text style={styles.headerIconText}>🚗</Text>
                         </View>
                     </View>
-                    <Text className="text-white text-2xl font-bold">Add Vehicle</Text>
-                    <Text className="text-blue-100 text-sm mt-1">Register a new vehicle to your garage</Text>
+                    <Text style={styles.headerTitle}>Add Vehicle</Text>
+                    <Text style={styles.headerSubtitle}>Register a new vehicle to your garage</Text>
                 </View>
 
                 {/* Form */}
-                <View className="p-4 -mt-4">
+                <View style={styles.formContainer}>
                     {garages.length > 0 && (
-                        <View className="bg-white rounded-xl p-6 mb-4 shadow-sm border border-gray-100">
-                            <View className="flex-row items-center justify-between mb-4">
-                                <View className="flex-row items-center">
-                                    <View className="w-8 h-8 bg-purple-500 rounded-full flex items-center justify-center mr-3">
-                                        <Text className="text-white text-sm">🏠</Text>
+                        <View style={styles.card}>
+                            <View style={styles.cardHeader}>
+                                <View style={styles.cardHeaderLeft}>
+                                    <View style={[styles.iconContainer, { backgroundColor: '#eef9ff' }]}>
+                                        <Text style={styles.iconText}>🏠</Text>
                                     </View>
-                                    <Text className="text-lg font-bold text-gray-900">Select Garage</Text>
+                                    <Text style={styles.cardTitle}>Select Garage</Text>
                                 </View>
                                 <TouchableOpacity
                                     onPress={createNewGarage}
-                                    className="bg-purple-100 px-3 py-1 rounded-lg"
+                                    style={styles.newButton}
                                 >
-                                    <Text className="text-purple-600 text-xs font-medium">+ New</Text>
+                                    <Text style={styles.newButtonText}>+ New</Text>
                                 </TouchableOpacity>
                             </View>
 
-                            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                                <View className="flex-row gap-3">
+                            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.garageScroll}>
+                                <View style={styles.garageContainer}>
                                     {garages.map((garage) => (
                                         <TouchableOpacity
                                             key={garage.id}
                                             onPress={() => handleInputChange('garage_id', garage.id)}
-                                            className={`px-4 py-3 rounded-lg border-2 min-w-[120px] ${
-                                                formData.garage_id === garage.id
-                                                    ? 'bg-purple-50 border-purple-200'
-                                                    : 'bg-gray-50 border-gray-200'
-                                            }`}
+                                            style={[
+                                                styles.garageCard,
+                                                formData.garage_id === garage.id && styles.garageCardSelected
+                                            ]}
                                         >
-                                            <Text className={`text-center font-medium ${
-                                                formData.garage_id === garage.id
-                                                    ? 'text-purple-700'
-                                                    : 'text-gray-600'
-                                            }`}>
+                                            <Text style={[
+                                                styles.garageCardText,
+                                                formData.garage_id === garage.id && styles.garageCardTextSelected
+                                            ]}>
                                                 {garage.name}
                                             </Text>
                                         </TouchableOpacity>
@@ -333,200 +328,205 @@ export default function AddVehicle() {
                     )}
 
                     {garages.length === 0 && (
-                        <View className="bg-white rounded-xl p-6 mb-4 shadow-sm border border-gray-100 items-center">
-                            <View className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
-                                <Text className="text-2xl">🏠</Text>
+                        <View style={[styles.card, styles.emptyCard]}>
+                            <View style={styles.emptyIcon}>
+                                <Text style={styles.emptyIconText}>🏠</Text>
                             </View>
-                            <Text className="text-lg font-bold text-gray-900 mb-2">No Garages Found</Text>
-                            <Text className="text-gray-500 text-center mb-4">
+                            <Text style={styles.emptyTitle}>No Garages Found</Text>
+                            <Text style={styles.emptyText}>
                                 You need to create a garage first before adding vehicles
                             </Text>
                             <TouchableOpacity
                                 onPress={createNewGarage}
-                                className="bg-gradient-to-r from-purple-500 to-indigo-500 px-6 py-3 rounded-lg"
+                                style={styles.createButton}
                             >
-                                <Text className="text-white font-medium">Create First Garage</Text>
+                                <Text style={styles.createButtonText}>Create First Garage</Text>
                             </TouchableOpacity>
                         </View>
                     )}
 
-                    <View className="bg-white rounded-xl p-6 mb-4 shadow-sm border border-gray-100">
-                        <View className="flex-row items-center mb-4">
-                            <View className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center mr-3">
-                                <Text className="text-white text-sm">ℹ️</Text>
+                    {/* Vehicle Information */}
+                    <View style={styles.card}>
+                        <View style={styles.cardSectionHeader}>
+                            <View style={[styles.iconContainer, { backgroundColor: '#eef9ff' }]}>
+                                <Text style={styles.iconText}>ℹ️</Text>
                             </View>
-                            <Text className="text-lg font-bold text-gray-900">Vehicle Information</Text>
+                            <Text style={styles.cardTitle}>Vehicle Information</Text>
                         </View>
 
-                        <View className="space-y-4">
-                            {/* Make */}
-                            <View>
-                                <Text className="text-sm font-medium text-gray-700 mb-2">Make</Text>
-                                <TextInput
-                                    value={formData.make}
-                                    onChangeText={(text) => handleInputChange('make', text)}
-                                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-gray-900"
-                                    placeholder="Toyota, BMW, Audi"
-                                    placeholderTextColor="#9CA3AF"
-                                />
-                            </View>
+                        <View style={styles.inputGroup}>
+                            <Text style={styles.label}>Make</Text>
+                            <TextInput
+                                style={styles.input}
+                                value={formData.make}
+                                onChangeText={(text) => handleInputChange('make', text)}
+                                placeholder="Toyota, BMW, Audi"
+                                placeholderTextColor="#9ca3af"
+                            />
+                        </View>
 
-                            <View>
-                                <Text className="text-sm font-medium text-gray-700 mb-2">Model</Text>
-                                <TextInput
-                                    value={formData.model}
-                                    onChangeText={(text) => handleInputChange('model', text)}
-                                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-gray-900"
-                                    placeholder="Camry, X5, A4"
-                                    placeholderTextColor="#9CA3AF"
-                                />
-                            </View>
+                        <View style={styles.inputGroup}>
+                            <Text style={styles.label}>Model</Text>
+                            <TextInput
+                                style={styles.input}
+                                value={formData.model}
+                                onChangeText={(text) => handleInputChange('model', text)}
+                                placeholder="Camry, X5, A4"
+                                placeholderTextColor="#9ca3af"
+                            />
+                        </View>
 
-                            <View>
-                                <Text className="text-sm font-medium text-gray-700 mb-2">Production Year</Text>
-                                <TextInput
-                                    value={formData.production_year}
-                                    onChangeText={(text) => handleInputChange('production_year', text)}
-                                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-gray-900"
-                                    placeholder="2020"
-                                    placeholderTextColor="#9CA3AF"
-                                    keyboardType="numeric"
-                                />
-                            </View>
+                        <View style={styles.inputGroup}>
+                            <Text style={styles.label}>Production Year</Text>
+                            <TextInput
+                                style={styles.input}
+                                value={formData.production_year}
+                                onChangeText={(text) => handleInputChange('production_year', text)}
+                                placeholder="2020"
+                                placeholderTextColor="#9ca3af"
+                                keyboardType="numeric"
+                            />
                         </View>
                     </View>
 
-                    <View className="bg-white rounded-xl p-6 mb-4 shadow-sm border border-gray-100">
-                        <View className="flex-row items-center mb-4">
-                            <View className="w-8 h-8 bg-orange-500 rounded-full flex items-center justify-center mr-3">
-                                <Text className="text-white text-sm">🔧</Text>
+                    {/* Service Details */}
+                    <View style={styles.card}>
+                        <View style={styles.cardSectionHeader}>
+                            <View style={[styles.iconContainer, { backgroundColor: '#fef3e6' }]}>
+                                <Text style={styles.iconText}>🔧</Text>
                             </View>
-                            <Text className="text-lg font-bold text-gray-900">Service Details</Text>
+                            <Text style={styles.cardTitle}>Service Details</Text>
                         </View>
 
-                        <View className="space-y-4">
-                            <View>
-                                <Text className="text-sm font-medium text-gray-700 mb-2">Tire Type</Text>
-                                <TextInput
-                                    value={formData.tire_type}
-                                    onChangeText={(text) => handleInputChange('tire_type', text)}
-                                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-gray-900"
-                                    placeholder="All-Season, Winter, Summer"
-                                    placeholderTextColor="#9CA3AF"
-                                />
-                            </View>
+                        <View style={styles.inputGroup}>
+                            <Text style={styles.label}>Tire Type</Text>
+                            <TextInput
+                                style={styles.input}
+                                value={formData.tire_type}
+                                onChangeText={(text) => handleInputChange('tire_type', text)}
+                                placeholder="All-Season, Winter, Summer"
+                                placeholderTextColor="#9ca3af"
+                            />
+                        </View>
 
-                            <View>
-                                <Text className="text-sm font-medium text-gray-700 mb-2">Last Service Date</Text>
-                                <TextInput
-                                    value={formData.last_service}
-                                    onChangeText={(text) => handleInputChange('last_service', text)}
-                                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-gray-900"
-                                    placeholder="2025-01-15"
-                                    placeholderTextColor="#9CA3AF"
-                                />
-                                <Text className="text-xs text-gray-500 mt-1">Format: YYYY-MM-DD</Text>
-                            </View>
+                        <View style={styles.inputGroup}>
+                            <Text style={styles.label}>Last Service Date</Text>
+                            <TextInput
+                                style={styles.input}
+                                value={formData.last_service}
+                                onChangeText={(text) => handleInputChange('last_service', text)}
+                                placeholder="2025-01-15"
+                                placeholderTextColor="#9ca3af"
+                            />
+                            <Text style={styles.helperText}>Format: YYYY-MM-DD</Text>
                         </View>
                     </View>
 
-                    <View className="bg-white rounded-xl p-6 mb-6 shadow-sm border border-gray-100">
-                        <View className="flex-row items-center mb-4">
-                            <View className="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center mr-3">
-                                <Text className="text-white text-sm">✓</Text>
+                    {/* Availability Status */}
+                    <View style={styles.card}>
+                        <View style={styles.cardSectionHeader}>
+                            <View style={[styles.iconContainer, { backgroundColor: '#ecfdf5' }]}>
+                                <Text style={styles.iconText}>✓</Text>
                             </View>
-                            <Text className="text-lg font-bold text-gray-900">Availability Status</Text>
+                            <Text style={styles.cardTitle}>Availability Status</Text>
                         </View>
 
-                        <View className="flex-row gap-3">
+                        <View style={styles.availabilityContainer}>
                             <TouchableOpacity
                                 onPress={() => handleInputChange('availability', true)}
-                                className={`flex-1 p-4 rounded-lg border-2 ${
-                                    formData.availability
-                                        ? 'bg-green-50 border-green-200'
-                                        : 'bg-gray-50 border-gray-200'
-                                }`}
+                                style={[
+                                    styles.availabilityCard,
+                                    formData.availability && styles.availabilityCardSelected
+                                ]}
                             >
-                                <View className="flex-row items-center justify-center">
-                                    <View className={`w-6 h-6 rounded-full flex items-center justify-center mr-2 ${
-                                        formData.availability ? 'bg-green-500' : 'bg-gray-300'
-                                    }`}>
-                                        <Text className="text-white text-xs">✓</Text>
+                                <View style={styles.availabilityContent}>
+                                    <View style={[
+                                        styles.availabilityIcon,
+                                        formData.availability && styles.availabilityIconSelected
+                                    ]}>
+                                        <Text style={styles.availabilityCheck}>✓</Text>
                                     </View>
-                                    <Text className={`font-medium ${
-                                        formData.availability ? 'text-green-700' : 'text-gray-600'
-                                    }`}>
+                                    <Text style={[
+                                        styles.availabilityText,
+                                        formData.availability && styles.availabilityTextSelected
+                                    ]}>
                                         Available
                                     </Text>
                                 </View>
-                                <Text className={`text-xs text-center mt-1 ${
-                                    formData.availability ? 'text-green-600' : 'text-gray-500'
-                                }`}>
+                                <Text style={[
+                                    styles.availabilitySubtext,
+                                    formData.availability && styles.availabilitySubtextSelected
+                                ]}>
                                     Ready to use
                                 </Text>
                             </TouchableOpacity>
 
                             <TouchableOpacity
                                 onPress={() => handleInputChange('availability', false)}
-                                className={`flex-1 p-4 rounded-lg border-2 ${
-                                    !formData.availability
-                                        ? 'bg-red-50 border-red-200'
-                                        : 'bg-gray-50 border-gray-200'
-                                }`}
+                                style={[
+                                    styles.availabilityCard,
+                                    !formData.availability && styles.availabilityCardUnavailable
+                                ]}
                             >
-                                <View className="flex-row items-center justify-center">
-                                    <View className={`w-6 h-6 rounded-full flex items-center justify-center mr-2 ${
-                                        !formData.availability ? 'bg-red-500' : 'bg-gray-300'
-                                    }`}>
-                                        <Text className="text-white text-xs">✕</Text>
+                                <View style={styles.availabilityContent}>
+                                    <View style={[
+                                        styles.availabilityIcon,
+                                        !formData.availability && styles.availabilityIconUnavailable
+                                    ]}>
+                                        <Text style={styles.availabilityCheck}>✕</Text>
                                     </View>
-                                    <Text className={`font-medium ${
-                                        !formData.availability ? 'text-red-700' : 'text-gray-600'
-                                    }`}>
+                                    <Text style={[
+                                        styles.availabilityText,
+                                        !formData.availability && styles.availabilityTextUnavailable
+                                    ]}>
                                         Not Available
                                     </Text>
                                 </View>
-                                <Text className={`text-xs text-center mt-1 ${
-                                    !formData.availability ? 'text-red-600' : 'text-gray-500'
-                                }`}>
+                                <Text style={[
+                                    styles.availabilitySubtext,
+                                    !formData.availability && styles.availabilitySubtextUnavailable
+                                ]}>
                                     Under maintenance
                                 </Text>
                             </TouchableOpacity>
                         </View>
                     </View>
 
-                    <View className="bg-blue-50 border border-blue-200 rounded-xl mb-4 p-4">
-                        <View className="flex-row items-center mb-2">
-                            <View className="w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center mr-2">
-                                <Text className="text-white text-xs">i</Text>
+                    {/* Info Banner */}
+                    <View style={styles.infoBanner}>
+                        <View style={styles.infoBannerHeader}>
+                            <View style={styles.infoIcon}>
+                                <Text style={styles.infoIconText}>i</Text>
                             </View>
-                            <Text className="text-sm font-medium text-blue-800">Important Information</Text>
+                            <Text style={styles.infoBannerTitle}>Important Information</Text>
                         </View>
-                        <Text className="text-xs text-blue-600">
+                        <Text style={styles.infoBannerText}>
                             Make sure all vehicle information is accurate. This data will be used for maintenance tracking and availability management.
                         </Text>
                     </View>
 
-                    <View className="flex-row gap-3 mb-4">
+                    {/* Action Buttons */}
+                    <View style={styles.buttonContainer}>
                         <TouchableOpacity
                             onPress={() => router.back()}
-                            className="flex-1 py-4 px-6 bg-gray-100 rounded-lg border border-gray-200"
+                            style={styles.cancelButton}
                         >
-                            <Text className="text-gray-700 text-center font-medium">Cancel</Text>
+                            <Text style={styles.cancelButtonText}>Cancel</Text>
                         </TouchableOpacity>
 
                         <TouchableOpacity
                             onPress={handleSubmit}
                             disabled={loading || garages.length === 0}
-                            className={`flex-1 py-4 px-6 rounded-lg ${
-                                loading || garages.length === 0
-                                    ? 'bg-gray-400'
-                                    : 'bg-gradient-to-r from-sky-500 via-blue-500 to-indigo-500'
-                            }`}
+                            style={[
+                                styles.submitButton,
+                                (loading || garages.length === 0) && styles.submitButtonDisabled
+                            ]}
                         >
-                            <Text className="text-white text-center font-bold">
-                                {loading ? 'Adding Vehicle...' : 'Add Vehicle'}
-                            </Text>
+                            {loading ? (
+                                <ActivityIndicator color="#fff" />
+                            ) : (
+                                <Text style={styles.submitButtonText}>Add Vehicle</Text>
+                            )}
                         </TouchableOpacity>
                     </View>
                 </View>
@@ -534,3 +534,374 @@ export default function AddVehicle() {
         </KeyboardAvoidingView>
     );
 }
+
+const styles = StyleSheet.create({
+    container: {
+        flex: 1,
+        backgroundColor: '#f8fafc',
+    },
+    scrollView: {
+        flex: 1,
+    },
+    scrollContent: {
+        paddingBottom: 32,
+    },
+    loadingContainer: {
+        flex: 1,
+        backgroundColor: '#f8fafc',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    loadingIcon: {
+        width: 64,
+        height: 64,
+        backgroundColor: '#0b6b8a',
+        borderRadius: 32,
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginBottom: 16,
+    },
+    loadingEmoji: {
+        fontSize: 24,
+        color: '#fff',
+    },
+    loadingText: {
+        fontSize: 16,
+        color: '#6b7280',
+    },
+    header: {
+        backgroundColor: '#0b6b8a',
+        paddingTop: Platform.OS === 'ios' ? 50 : 20,
+        paddingBottom: 24,
+        paddingHorizontal: 24,
+    },
+    headerTop: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        marginBottom: 16,
+    },
+    backButton: {
+        width: 40,
+        height: 40,
+        backgroundColor: 'rgba(255, 255, 255, 0.2)',
+        borderRadius: 10,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    backButtonText: {
+        fontSize: 18,
+        color: '#fff',
+    },
+    headerIcon: {
+        width: 40,
+        height: 40,
+        backgroundColor: 'rgba(255, 255, 255, 0.2)',
+        borderRadius: 10,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    headerIconText: {
+        fontSize: 20,
+    },
+    headerTitle: {
+        fontSize: 28,
+        fontWeight: '700',
+        color: '#fff',
+        marginBottom: 4,
+    },
+    headerSubtitle: {
+        fontSize: 14,
+        color: 'rgba(255, 255, 255, 0.9)',
+    },
+    formContainer: {
+        padding: 16,
+        marginTop: -16,
+    },
+    card: {
+        backgroundColor: '#fff',
+        borderRadius: 16,
+        padding: 20,
+        marginBottom: 16,
+        borderWidth: 1,
+        borderColor: '#f1f5f9',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.04,
+        shadowRadius: 4,
+        elevation: 2,
+    },
+    emptyCard: {
+        alignItems: 'center',
+    },
+    cardHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        marginBottom: 16,
+    },
+    cardHeaderLeft: {
+        flexDirection: 'row',
+        alignItems: 'center',
+    },
+    cardSectionHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginBottom: 20,
+    },
+    iconContainer: {
+        width: 32,
+        height: 32,
+        borderRadius: 8,
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginRight: 12,
+    },
+    iconText: {
+        fontSize: 16,
+    },
+    cardTitle: {
+        fontSize: 18,
+        fontWeight: '600',
+        color: '#0f1724',
+    },
+    newButton: {
+        backgroundColor: '#eef9ff',
+        paddingHorizontal: 12,
+        paddingVertical: 6,
+        borderRadius: 8,
+    },
+    newButtonText: {
+        color: '#0b6b8a',
+        fontSize: 12,
+        fontWeight: '600',
+    },
+    garageScroll: {
+        marginHorizontal: -4,
+    },
+    garageContainer: {
+        flexDirection: 'row',
+        gap: 12,
+        paddingHorizontal: 4,
+    },
+    garageCard: {
+        paddingHorizontal: 16,
+        paddingVertical: 12,
+        borderRadius: 10,
+        borderWidth: 2,
+        borderColor: '#e5e7eb',
+        backgroundColor: '#f8fafc',
+        minWidth: 120,
+    },
+    garageCardSelected: {
+        backgroundColor: '#eef9ff',
+        borderColor: '#0b6b8a',
+    },
+    garageCardText: {
+        textAlign: 'center',
+        fontWeight: '500',
+        color: '#6b7280',
+    },
+    garageCardTextSelected: {
+        color: '#0b6b8a',
+    },
+    emptyIcon: {
+        width: 64,
+        height: 64,
+        backgroundColor: '#f1f5f9',
+        borderRadius: 32,
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginBottom: 16,
+    },
+    emptyIconText: {
+        fontSize: 32,
+    },
+    emptyTitle: {
+        fontSize: 18,
+        fontWeight: '600',
+        color: '#0f1724',
+        marginBottom: 8,
+    },
+    emptyText: {
+        fontSize: 14,
+        color: '#6b7280',
+        textAlign: 'center',
+        marginBottom: 20,
+    },
+    createButton: {
+        backgroundColor: '#0b6b8a',
+        paddingHorizontal: 24,
+        paddingVertical: 12,
+        borderRadius: 10,
+    },
+    createButtonText: {
+        color: '#fff',
+        fontWeight: '600',
+    },
+    inputGroup: {
+        marginBottom: 20,
+    },
+    label: {
+        fontSize: 14,
+        fontWeight: '600',
+        color: '#374151',
+        marginBottom: 8,
+    },
+    input: {
+        width: '100%',
+        height: 52,
+        backgroundColor: '#f8fafc',
+        borderWidth: 1,
+        borderColor: '#e5e7eb',
+        borderRadius: 12,
+        paddingHorizontal: 16,
+        fontSize: 16,
+        color: '#0f1724',
+    },
+    helperText: {
+        fontSize: 12,
+        color: '#6b7280',
+        marginTop: 4,
+    },
+    availabilityContainer: {
+        flexDirection: 'row',
+        gap: 12,
+    },
+    availabilityCard: {
+        flex: 1,
+        padding: 16,
+        borderRadius: 12,
+        borderWidth: 2,
+        borderColor: '#e5e7eb',
+        backgroundColor: '#f8fafc',
+    },
+    availabilityCardSelected: {
+        backgroundColor: '#ecfdf5',
+        borderColor: '#10b981',
+    },
+    availabilityCardUnavailable: {
+        backgroundColor: '#fef2f2',
+        borderColor: '#ef4444',
+    },
+    availabilityContent: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginBottom: 8,
+    },
+    availabilityIcon: {
+        width: 24,
+        height: 24,
+        borderRadius: 12,
+        backgroundColor: '#d1d5db',
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginRight: 8,
+    },
+    availabilityIconSelected: {
+        backgroundColor: '#10b981',
+    },
+    availabilityIconUnavailable: {
+        backgroundColor: '#ef4444',
+    },
+    availabilityCheck: {
+        fontSize: 12,
+        color: '#fff',
+    },
+    availabilityText: {
+        fontWeight: '500',
+        color: '#6b7280',
+    },
+    availabilityTextSelected: {
+        color: '#10b981',
+    },
+    availabilityTextUnavailable: {
+        color: '#ef4444',
+    },
+    availabilitySubtext: {
+        fontSize: 12,
+        textAlign: 'center',
+        color: '#9ca3af',
+    },
+    availabilitySubtextSelected: {
+        color: '#10b981',
+    },
+    availabilitySubtextUnavailable: {
+        color: '#ef4444',
+    },
+    infoBanner: {
+        backgroundColor: '#eef9ff',
+        borderWidth: 1,
+        borderColor: '#bae6fd',
+        borderRadius: 12,
+        padding: 16,
+        marginBottom: 16,
+    },
+    infoBannerHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginBottom: 8,
+    },
+    infoIcon: {
+        width: 24,
+        height: 24,
+        backgroundColor: '#0b6b8a',
+        borderRadius: 12,
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginRight: 8,
+    },
+    infoIconText: {
+        fontSize: 12,
+        color: '#fff',
+        fontWeight: '600',
+    },
+    infoBannerTitle: {
+        fontSize: 14,
+        fontWeight: '600',
+        color: '#0b6b8a',
+    },
+    infoBannerText: {
+        fontSize: 12,
+        color: '#0b6b8a',
+        lineHeight: 18,
+    },
+    buttonContainer: {
+        flexDirection: 'row',
+        gap: 12,
+        marginTop: 8,
+    },
+    cancelButton: {
+        flex: 1,
+        paddingVertical: 14,
+        paddingHorizontal: 24,
+        backgroundColor: '#f1f5f9',
+        borderRadius: 12,
+        borderWidth: 1,
+        borderColor: '#e5e7eb',
+        alignItems: 'center',
+    },
+    cancelButtonText: {
+        color: '#374151',
+        fontSize: 16,
+        fontWeight: '500',
+    },
+    submitButton: {
+        flex: 1,
+        paddingVertical: 14,
+        paddingHorizontal: 24,
+        backgroundColor: '#0b6b8a',
+        borderRadius: 12,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    submitButtonDisabled: {
+        backgroundColor: '#9ca3af',
+    },
+    submitButtonText: {
+        color: '#fff',
+        fontSize: 16,
+        fontWeight: '600',
+    },
+});
