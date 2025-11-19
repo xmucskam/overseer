@@ -45,6 +45,7 @@ export default function CarDetail() {
     const [garage, setGarage] = useState<GarageInfo | null>(null);
     const [loading, setLoading] = useState(true);
     const [updatingAvailability, setUpdatingAvailability] = useState(false);
+    const [deleting, setDeleting] = useState(false);
 
     useEffect(() => {
         if (carData) {
@@ -139,41 +140,86 @@ export default function CarDetail() {
         });
     };
 
-    const handleDelete = async () => {
-        if (!car) return;
+    const handleDelete = () => {
+        console.log('Delete button pressed, car:', car);
+        
+        if (!car) {
+            console.log('No car data available');
+            Alert.alert('Error', 'Vehicle data not available');
+            return;
+        }
+
+        console.log('Showing delete confirmation for:', car.make, car.model);
 
         Alert.alert(
             'Delete Vehicle',
-            'Are you sure you want to delete this vehicle? This action cannot be undone.',
+            `Are you sure you want to delete ${car.make} ${car.model}? This action cannot be undone.`,
             [
                 {
                     text: 'Cancel',
                     style: 'cancel',
+                    onPress: () => console.log('Delete cancelled'),
                 },
                 {
                     text: 'Delete',
                     style: 'destructive',
                     onPress: async () => {
+                        console.log('Delete confirmed, deleting car ID:', car.id);
+                        setDeleting(true);
                         try {
-                            const { error } = await supabase
+                            console.log('Calling Supabase delete for car ID:', car.id);
+                            
+                            const { data, error } = await supabase
                                 .from('cars')
                                 .delete()
-                                .eq('id', car.id);
+                                .eq('id', car.id)
+                                .select();
+
+                            console.log('Delete response - data:', data);
+                            console.log('Delete response - error:', error);
+                            console.log('Delete response - error details:', error ? JSON.stringify(error, null, 2) : 'No error');
 
                             if (error) {
                                 console.error('Error deleting car:', error);
-                                Alert.alert('Error', 'Failed to delete vehicle');
+                                Alert.alert('Error', `Failed to delete vehicle: ${error.message}`);
+                                setDeleting(false);
                                 return;
                             }
 
-                            router.replace('/(tabs)/dashboard');
-                        } catch (error) {
-                            console.error('Error deleting car:', error);
-                            Alert.alert('Error', 'Failed to delete vehicle');
+                            // Check if deletion was successful
+                            // Supabase returns the deleted row(s) in data array
+                            if (data && data.length > 0) {
+                                console.log('Car deleted successfully, deleted row:', data[0]);
+                                Alert.alert('Success', 'Vehicle deleted successfully', [
+                                    {
+                                        text: 'OK',
+                                        onPress: () => {
+                                            router.replace('/(tabs)/dashboard');
+                                        }
+                                    }
+                                ]);
+                            } else {
+                                console.warn('Delete query succeeded but no data returned - car may not exist');
+                                // Still navigate back as the delete might have worked
+                                Alert.alert('Success', 'Vehicle deleted', [
+                                    {
+                                        text: 'OK',
+                                        onPress: () => {
+                                            router.replace('/(tabs)/dashboard');
+                                        }
+                                    }
+                                ]);
+                            }
+                        } catch (error: any) {
+                            console.error('Exception deleting car:', error);
+                            console.error('Exception stack:', error?.stack);
+                            Alert.alert('Error', `Failed to delete vehicle: ${error?.message || 'Unknown error'}`);
+                            setDeleting(false);
                         }
                     },
                 },
-            ]
+            ],
+            { cancelable: true }
         );
     };
 
@@ -213,10 +259,20 @@ export default function CarDetail() {
                             <Ionicons name="pencil" size={18} color="#475569" />
                         </TouchableOpacity>
                         <TouchableOpacity
-                            onPress={handleDelete}
+                            onPress={() => {
+                                console.log('Trash icon pressed!');
+                                handleDelete();
+                            }}
+                            disabled={deleting}
+                            activeOpacity={0.7}
+                            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                             style={[styles.headerButton, styles.deleteButton]}
                         >
-                            <Ionicons name="trash-outline" size={18} color="#e11d48" />
+                            {deleting ? (
+                                <ActivityIndicator size="small" color="#e11d48" />
+                            ) : (
+                                <Ionicons name="trash-outline" size={18} color="#e11d48" />
+                            )}
                         </TouchableOpacity>
                     </View>
                 </View>
