@@ -1,30 +1,43 @@
 import { supabase } from '@/utils/supabase';
-import { Ionicons } from '@expo/vector-icons';
-import DateTimePicker from '@react-native-community/datetimepicker';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
-    ActivityIndicator,
     Alert,
     KeyboardAvoidingView,
-    Modal,
     Platform,
     ScrollView,
-    StyleSheet,
     Text,
     TextInput,
     TouchableOpacity,
     View,
+    StyleSheet,
+    ActivityIndicator,
+    Modal,
 } from 'react-native';
+import DateTimePicker from '@react-native-community/datetimepicker';
+import { Ionicons } from '@expo/vector-icons';
 
 interface Garage {
     id: string;
     name: string;
 }
 
-export default function AddVehicle() {
+interface CarData {
+    id: string;
+    make: string;
+    model: string;
+    production_year: string;
+    garage_id: string;
+    cars?: {
+        tire_type: string;
+        last_service: string;
+        availability: boolean;
+    } | null;
+}
+
+export default function EditVehicle() {
     const router = useRouter();
-    const { garageId } = useLocalSearchParams();
+    const { carId, carData, editField } = useLocalSearchParams();
 
     const [formData, setFormData] = useState({
         make: '',
@@ -33,12 +46,13 @@ export default function AddVehicle() {
         tire_type: '',
         last_service: '',
         availability: true,
-        garage_id: garageId as string || ''
+        garage_id: '',
     });
 
     const [garages, setGarages] = useState<Garage[]>([]);
     const [loading, setLoading] = useState(false);
     const [loadingGarages, setLoadingGarages] = useState(true);
+    const [originalCar, setOriginalCar] = useState<CarData | null>(null);
     const [showDatePicker, setShowDatePicker] = useState(false);
     const [showTireModal, setShowTireModal] = useState(false);
     const [customTireType, setCustomTireType] = useState('');
@@ -48,11 +62,31 @@ export default function AddVehicle() {
     const tireOptions = ['Winter', 'Summer', 'Semi-Slick'];
 
     useEffect(() => {
-        fetchGarages();
-        if (garageId) {
-            setFormData(prev => ({ ...prev, garage_id: String(garageId) }));
+        if (carData) {
+            try {
+                const parsedCar = JSON.parse(carData as string);
+                setOriginalCar(parsedCar);
+                const lastService = parsedCar.cars?.last_service || '';
+                setFormData({
+                    make: parsedCar.make || '',
+                    model: parsedCar.model || '',
+                    production_year: parsedCar.production_year || '',
+                    tire_type: parsedCar.cars?.tire_type || '',
+                    last_service: lastService,
+                    availability: parsedCar.cars?.availability ?? true,
+                    garage_id: parsedCar.garage_id || '',
+                });
+                if (lastService) {
+                    setSelectedDate(new Date(lastService));
+                }
+            } catch (error) {
+                console.error('Error parsing car data:', error);
+                Alert.alert('Error', 'Failed to load vehicle data');
+                router.back();
+            }
         }
-    }, [garageId]);
+        fetchGarages();
+    }, [carData]);
 
     const fetchGarages = async () => {
         try {
@@ -72,101 +106,15 @@ export default function AddVehicle() {
 
             if (error) {
                 console.error('Error fetching garages:', error);
-                await createDefaultGarage(user.id);
                 return;
             }
 
-            if (!data || data.length === 0) {
-                await createDefaultGarage(user.id);
-            } else {
-                setGarages(data);
-                if (!garageId && data.length > 0) {
-                    setFormData(prev => ({ ...prev, garage_id: data[0].id }));
-                }
-            }
+            setGarages(data || []);
 
         } catch (error) {
             console.error('Fetch garages error:', error);
-            await createDefaultGarage();
         } finally {
             setLoadingGarages(false);
-        }
-    };
-
-    const createDefaultGarage = async (userId?: string) => {
-        try {
-            if (!userId) {
-                const { data: { user } } = await supabase.auth.getUser();
-                userId = user?.id;
-            }
-
-            if (!userId) return;
-
-            const { data, error } = await supabase
-                .from('garages')
-                .insert([{
-                    name: 'My Garage',
-                    user_id: userId,
-                    created_at: new Date().toISOString()
-                }])
-                .select()
-                .single();
-
-            if (error) {
-                console.error('Error creating default garage:', error);
-                return;
-            }
-
-            if (data) {
-                setGarages([data]);
-                setFormData(prev => ({ ...prev, garage_id: data.id }));
-            }
-        } catch (error) {
-            console.error('Error creating default garage:', error);
-        }
-    };
-
-    const createNewGarage = async () => {
-        if (Platform.OS === 'ios') {
-            Alert.prompt(
-                'Create New Garage',
-                'Enter garage name:',
-                async (garageName) => {
-                    if (!garageName?.trim()) return;
-
-                    try {
-                        const { data: { user } } = await supabase.auth.getUser();
-                        if (!user) return;
-
-                        const { data, error } = await supabase
-                            .from('garages')
-                            .insert([{
-                                name: garageName.trim(),
-                                user_id: user.id,
-                                created_at: new Date().toISOString()
-                            }])
-                            .select()
-                            .single();
-
-                        if (error) {
-                            Alert.alert('Error', 'Failed to create garage');
-                            return;
-                        }
-
-                        setGarages(prev => [...prev, data]);
-                        setFormData(prev => ({ ...prev, garage_id: data.id }));
-                        Alert.alert('Success', 'Garage created successfully!');
-                    } catch (error) {
-                        Alert.alert('Error', 'Failed to create garage');
-                    }
-                }
-            );
-        } else {
-            Alert.alert(
-                'Create New Garage',
-                'Garage creation via prompt is only supported on iOS. Please create a garage from the Garages screen.',
-                [{ text: 'OK' }]
-            );
         }
     };
 
@@ -257,7 +205,36 @@ export default function AddVehicle() {
     };
 
     const handleSubmit = async () => {
-        if (!validateForm()) return;
+        // For focused edit view, only validate the field being edited
+        if (editField) {
+            if (editField === 'makeModel') {
+                if (!formData.make.trim() || !formData.model.trim()) {
+                    Alert.alert('Error', 'Please enter both make and model');
+                    return;
+                }
+            } else if (editField === 'production_year') {
+                if (!formData.production_year.trim()) {
+                    Alert.alert('Error', 'Please enter the production year');
+                    return;
+                }
+                if (isNaN(Number(formData.production_year)) || Number(formData.production_year) < 1900 || Number(formData.production_year) > new Date().getFullYear() + 1) {
+                    Alert.alert('Error', 'Please enter a valid production year');
+                    return;
+                }
+            } else if (editField === 'tire_type') {
+                if (!formData.tire_type.trim()) {
+                    Alert.alert('Error', 'Please select a tire type');
+                    return;
+                }
+            } else if (editField === 'last_service') {
+                if (!formData.last_service.trim()) {
+                    Alert.alert('Error', 'Please select a service date');
+                    return;
+                }
+            }
+        } else {
+            if (!validateForm()) return;
+        }
 
         setLoading(true);
 
@@ -265,37 +242,51 @@ export default function AddVehicle() {
             const { data: { user }, error: userError } = await supabase.auth.getUser();
 
             if (userError || !user) {
-                Alert.alert('Error', 'You must be logged in to add a vehicle');
+                Alert.alert('Error', 'You must be logged in to edit a vehicle');
                 setLoading(false);
                 return;
             }
 
-            const carPayload = {
-                garage_id: formData.garage_id,
-                make: formData.make.trim(),
-                model: formData.model.trim(),
-                production_year: parseInt(formData.production_year),
-                tire_type: formData.tire_type.trim(),
-                last_service: formData.last_service,
-                availability: formData.availability,
-                created_at: new Date().toISOString()
-            };
+            // Build update object - only include fields that are being edited or are required
+            const updateData: any = {};
+            
+            if (editField) {
+                // For focused edit, only update the specific field
+                if (editField === 'makeModel') {
+                    updateData.make = formData.make.trim();
+                    updateData.model = formData.model.trim();
+                } else if (editField === 'production_year') {
+                    updateData.production_year = parseInt(formData.production_year);
+                } else if (editField === 'tire_type') {
+                    updateData.tire_type = formData.tire_type.trim();
+                } else if (editField === 'last_service') {
+                    updateData.last_service = formData.last_service;
+                }
+            } else {
+                // For full edit, update all fields
+                updateData.garage_id = formData.garage_id;
+                updateData.make = formData.make.trim();
+                updateData.model = formData.model.trim();
+                updateData.production_year = parseInt(formData.production_year);
+                updateData.tire_type = formData.tire_type.trim();
+                updateData.last_service = formData.last_service;
+                updateData.availability = formData.availability;
+            }
 
-            const { data: carData, error: carError } = await supabase
+            // Update the main car record
+            const { error: carError } = await supabase
                 .from('cars')
-                .insert([carPayload])
-                .select()
-                .single();
+                .update(updateData)
+                .eq('id', carId);
 
             if (carError) {
-                console.error('Car insert error:', carError);
-                Alert.alert('Database Error', `Failed to add vehicle: ${carError.message}`);
+                console.error('Car update error:', carError);
+                Alert.alert('Database Error', `Failed to update vehicle: ${carError.message}`);
                 setLoading(false);
                 return;
             }
 
-            router.replace('/(tabs)/dashboard');
-            Alert.alert('Success', 'Vehicle added successfully!', [
+            Alert.alert('Success', 'Vehicle updated successfully!', [
                 {
                     text: 'OK',
                     onPress: () => router.back()
@@ -310,11 +301,271 @@ export default function AddVehicle() {
         }
     };
 
+    // If editField is specified, show a focused edit view
+    if (editField) {
+        return (
+            <KeyboardAvoidingView
+                style={styles.container}
+                behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            >
+                <View style={styles.header}>
+                    <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+                        <Ionicons name="arrow-back" size={20} color="#fff" />
+                    </TouchableOpacity>
+                    <Text style={styles.headerTitle}>
+                        Edit {editField === 'makeModel' ? 'Make & Model' : 
+                              editField === 'production_year' ? 'Year' :
+                              editField === 'tire_type' ? 'Tire Type' :
+                              editField === 'last_service' ? 'Last Service' : 'Field'}
+                    </Text>
+                </View>
+
+                <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
+                    <View style={styles.card}>
+                        {editField === 'makeModel' && (
+                            <>
+                                <View style={styles.inputGroup}>
+                                    <Text style={styles.label}>Make</Text>
+                                    <TextInput
+                                        style={styles.input}
+                                        value={formData.make}
+                                        onChangeText={(text) => handleInputChange('make', text)}
+                                        placeholder="Toyota, BMW, Audi"
+                                        placeholderTextColor="#9ca3af"
+                                    />
+                                </View>
+                                <View style={styles.inputGroup}>
+                                    <Text style={styles.label}>Model</Text>
+                                    <TextInput
+                                        style={styles.input}
+                                        value={formData.model}
+                                        onChangeText={(text) => handleInputChange('model', text)}
+                                        placeholder="Camry, X5, A4"
+                                        placeholderTextColor="#9ca3af"
+                                    />
+                                </View>
+                            </>
+                        )}
+
+                        {editField === 'production_year' && (
+                            <View style={styles.inputGroup}>
+                                <Text style={styles.label}>Production Year</Text>
+                                <TextInput
+                                    style={styles.input}
+                                    value={formData.production_year}
+                                    onChangeText={(text) => handleInputChange('production_year', text)}
+                                    placeholder="2020"
+                                    placeholderTextColor="#9ca3af"
+                                    keyboardType="numeric"
+                                />
+                            </View>
+                        )}
+
+                        {editField === 'tire_type' && (
+                            <View style={styles.inputGroup}>
+                                <Text style={styles.label}>Tire Type</Text>
+                                <TouchableOpacity
+                                    style={styles.dropdownButton}
+                                    onPress={() => setShowTireModal(true)}
+                                >
+                                    <Text style={[
+                                        styles.dropdownButtonText,
+                                        !formData.tire_type && styles.dropdownButtonTextPlaceholder
+                                    ]}>
+                                        {formData.tire_type || 'Select tire type'}
+                                    </Text>
+                                    <Ionicons name="chevron-down" size={20} color="#6b7280" />
+                                </TouchableOpacity>
+                            </View>
+                        )}
+
+                        {editField === 'last_service' && (
+                            <View style={styles.inputGroup}>
+                                <Text style={styles.label}>Last Service Date</Text>
+                                {Platform.OS === 'web' ? (
+                                    <input
+                                        type="date"
+                                        value={formData.last_service}
+                                        onChange={(e) => handleInputChange('last_service', e.target.value)}
+                                        max={new Date().toISOString().split('T')[0]}
+                                        style={{
+                                            width: '100%',
+                                            height: 52,
+                                            backgroundColor: '#f8fafc',
+                                            border: '1px solid #e5e7eb',
+                                            borderRadius: 12,
+                                            padding: '0 16px',
+                                            fontSize: 16,
+                                            color: '#0f1724',
+                                            fontFamily: 'inherit',
+                                        }}
+                                    />
+                                ) : (
+                                    <TouchableOpacity
+                                        style={styles.dropdownButton}
+                                        onPress={() => setShowDatePicker(true)}
+                                    >
+                                        <Text style={[
+                                            styles.dropdownButtonText,
+                                            !formData.last_service && styles.dropdownButtonTextPlaceholder
+                                        ]}>
+                                            {formatDate(formData.last_service)}
+                                        </Text>
+                                        <Ionicons name="calendar-outline" size={20} color="#6b7280" />
+                                    </TouchableOpacity>
+                                )}
+                            </View>
+                        )}
+
+                        <View style={styles.buttonContainer}>
+                            <TouchableOpacity
+                                onPress={() => router.back()}
+                                style={styles.cancelButton}
+                            >
+                                <Text style={styles.cancelButtonText}>Cancel</Text>
+                            </TouchableOpacity>
+
+                            <TouchableOpacity
+                                onPress={handleSubmit}
+                                disabled={loading}
+                                style={[styles.submitButton, loading && styles.submitButtonDisabled]}
+                            >
+                                {loading ? (
+                                    <ActivityIndicator color="#fff" />
+                                ) : (
+                                    <Text style={styles.submitButtonText}>Save</Text>
+                                )}
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                </ScrollView>
+
+                {/* Tire Type Modal */}
+                <Modal
+                    visible={showTireModal}
+                    transparent={true}
+                    animationType="slide"
+                    onRequestClose={() => {
+                        setShowTireModal(false);
+                        setShowCustomInput(false);
+                        setCustomTireType('');
+                    }}
+                >
+                    <View style={styles.modalOverlay}>
+                        <View style={styles.modalContent}>
+                            <View style={styles.modalHeader}>
+                                <Text style={styles.modalTitle}>Select Tire Type</Text>
+                                <TouchableOpacity
+                                    onPress={() => {
+                                        setShowTireModal(false);
+                                        setShowCustomInput(false);
+                                        setCustomTireType('');
+                                    }}
+                                    style={styles.modalCloseButton}
+                                >
+                                    <Ionicons name="close" size={24} color="#6b7280" />
+                                </TouchableOpacity>
+                            </View>
+
+                            {!showCustomInput ? (
+                                <ScrollView style={styles.modalList}>
+                                    {tireOptions.map((option) => (
+                                        <TouchableOpacity
+                                            key={option}
+                                            onPress={() => handleTireTypeSelect(option)}
+                                            style={styles.modalOption}
+                                        >
+                                            <Text style={styles.modalOptionText}>{option}</Text>
+                                            <Ionicons name="chevron-forward" size={20} color="#d1d5db" />
+                                        </TouchableOpacity>
+                                    ))}
+                                    <TouchableOpacity
+                                        onPress={() => setShowCustomInput(true)}
+                                        style={styles.modalOption}
+                                    >
+                                        <Text style={styles.modalOptionText}>Custom</Text>
+                                        <Ionicons name="chevron-forward" size={20} color="#d1d5db" />
+                                    </TouchableOpacity>
+                                </ScrollView>
+                            ) : (
+                                <View style={styles.modalCustomInput}>
+                                    <Text style={styles.modalSubtitle}>Enter custom tire type</Text>
+                                    <TextInput
+                                        style={styles.modalTextInput}
+                                        value={customTireType}
+                                        onChangeText={setCustomTireType}
+                                        placeholder="e.g., All-Season, Performance"
+                                        placeholderTextColor="#9ca3af"
+                                        autoFocus
+                                    />
+                                    <View style={styles.modalButtonContainer}>
+                                        <TouchableOpacity
+                                            onPress={() => {
+                                                setShowCustomInput(false);
+                                                setCustomTireType('');
+                                            }}
+                                            style={styles.modalCancelButton}
+                                        >
+                                            <Text style={styles.modalCancelButtonText}>Cancel</Text>
+                                        </TouchableOpacity>
+                                        <TouchableOpacity
+                                            onPress={handleCustomTireSubmit}
+                                            style={[
+                                                styles.modalSubmitButton,
+                                                !customTireType.trim() && styles.modalSubmitButtonDisabled
+                                            ]}
+                                            disabled={!customTireType.trim()}
+                                        >
+                                            <Text style={styles.modalSubmitButtonText}>Done</Text>
+                                        </TouchableOpacity>
+                                    </View>
+                                </View>
+                            )}
+                        </View>
+                    </View>
+                </Modal>
+
+                {/* Date Picker - Only for native platforms */}
+                {Platform.OS !== 'web' && showDatePicker && (
+                    <DateTimePicker
+                        value={formData.last_service ? new Date(formData.last_service) : selectedDate}
+                        mode="date"
+                        display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                        onChange={handleDateChange}
+                        maximumDate={new Date()}
+                    />
+                )}
+                {Platform.OS === 'ios' && showDatePicker && (
+                    <View style={styles.iosDatePickerContainer}>
+                        <View style={styles.iosDatePickerButtons}>
+                            <TouchableOpacity
+                                onPress={() => setShowDatePicker(false)}
+                                style={styles.iosDatePickerButton}
+                            >
+                                <Text style={styles.iosDatePickerButtonText}>Cancel</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                                onPress={() => {
+                                    const formattedDate = selectedDate.toISOString().split('T')[0];
+                                    handleInputChange('last_service', formattedDate);
+                                    setShowDatePicker(false);
+                                }}
+                                style={[styles.iosDatePickerButton, styles.iosDatePickerButtonPrimary]}
+                            >
+                                <Text style={styles.iosDatePickerButtonTextPrimary}>Done</Text>
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                )}
+            </KeyboardAvoidingView>
+        );
+    }
+
     if (loadingGarages) {
         return (
             <View style={styles.loadingContainer}>
                 <ActivityIndicator size="large" color="#0b6b8a" />
-                <Text style={styles.loadingText}>Loading garages...</Text>
+                <Text style={styles.loadingText}>Loading...</Text>
             </View>
         );
     }
@@ -329,30 +580,22 @@ export default function AddVehicle() {
                 <View style={styles.header}>
                     <View style={styles.headerTop}>
                         <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-                            <Ionicons name="arrow-back" size={20} color="#475569" />
+                            <Ionicons name="arrow-back" size={20} color="#fff" />
                         </TouchableOpacity>
                     </View>
-                    <Text style={styles.headerTitle}>Add Vehicle</Text>
-                    <Text style={styles.headerSubtitle}>Register a new vehicle to your garage</Text>
+                    <Text style={styles.headerTitle}>Edit Vehicle</Text>
+                    <Text style={styles.headerSubtitle}>Update vehicle information</Text>
                 </View>
 
                 {/* Form */}
                 <View style={styles.formContainer}>
                     {garages.length > 0 && (
                         <View style={styles.card}>
-                            <View style={styles.cardHeader}>
-                                <View style={styles.cardHeaderLeft}>
-                                    <View style={[styles.iconContainer, { backgroundColor: '#eef9ff' }]}>
-                                        <Ionicons name="home" size={18} color="#0b6b8a" />
-                                    </View>
-                                    <Text style={styles.cardTitle}>Select Garage</Text>
+                            <View style={styles.cardSectionHeader}>
+                                <View style={[styles.iconContainer, { backgroundColor: '#eef9ff' }]}>
+                                    <Ionicons name="home" size={20} color="#0b6b8a" />
                                 </View>
-                                <TouchableOpacity
-                                    onPress={createNewGarage}
-                                    style={styles.newButton}
-                                >
-                                    <Text style={styles.newButtonText}>+ New</Text>
-                                </TouchableOpacity>
+                                <Text style={styles.cardTitle}>Select Garage</Text>
                             </View>
 
                             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.garageScroll}>
@@ -379,29 +622,11 @@ export default function AddVehicle() {
                         </View>
                     )}
 
-                    {garages.length === 0 && (
-                        <View style={[styles.card, styles.emptyCard]}>
-                            <View style={styles.emptyIcon}>
-                                <Ionicons name="home-outline" size={32} color="#6b7280" />
-                            </View>
-                            <Text style={styles.emptyTitle}>No Garages Found</Text>
-                            <Text style={styles.emptyText}>
-                                You need to create a garage first before adding vehicles
-                            </Text>
-                            <TouchableOpacity
-                                onPress={createNewGarage}
-                                style={styles.createButton}
-                            >
-                                <Text style={styles.createButtonText}>Create First Garage</Text>
-                            </TouchableOpacity>
-                        </View>
-                    )}
-
                     {/* Vehicle Information */}
                     <View style={styles.card}>
                         <View style={styles.cardSectionHeader}>
                             <View style={[styles.iconContainer, { backgroundColor: '#eef9ff' }]}>
-                                <Ionicons name="car-sport" size={18} color="#0b6b8a" />
+                                <Ionicons name="car" size={20} color="#0b6b8a" />
                             </View>
                             <Text style={styles.cardTitle}>Vehicle Information</Text>
                         </View>
@@ -445,7 +670,7 @@ export default function AddVehicle() {
                     <View style={styles.card}>
                         <View style={styles.cardSectionHeader}>
                             <View style={[styles.iconContainer, { backgroundColor: '#fef3e6' }]}>
-                                <Ionicons name="build" size={18} color="#f59e0b" />
+                                <Ionicons name="build" size={20} color="#f59e0b" />
                             </View>
                             <Text style={styles.cardTitle}>Service Details</Text>
                         </View>
@@ -507,7 +732,7 @@ export default function AddVehicle() {
                     <View style={styles.card}>
                         <View style={styles.cardSectionHeader}>
                             <View style={[styles.iconContainer, { backgroundColor: '#ecfdf5' }]}>
-                                <Ionicons name="checkmark-circle" size={18} color="#10b981" />
+                                <Ionicons name="checkmark-circle" size={20} color="#10b981" />
                             </View>
                             <Text style={styles.cardTitle}>Availability Status</Text>
                         </View>
@@ -525,7 +750,7 @@ export default function AddVehicle() {
                                         styles.availabilityIcon,
                                         formData.availability && styles.availabilityIconSelected
                                     ]}>
-                                        <Ionicons name="checkmark" size={14} color="#fff" />
+                                        <Ionicons name="checkmark" size={16} color="#fff" />
                                     </View>
                                     <Text style={[
                                         styles.availabilityText,
@@ -554,7 +779,7 @@ export default function AddVehicle() {
                                         styles.availabilityIcon,
                                         !formData.availability && styles.availabilityIconUnavailable
                                     ]}>
-                                        <Ionicons name="close" size={14} color="#fff" />
+                                        <Ionicons name="close" size={16} color="#fff" />
                                     </View>
                                     <Text style={[
                                         styles.availabilityText,
@@ -571,19 +796,6 @@ export default function AddVehicle() {
                                 </Text>
                             </TouchableOpacity>
                         </View>
-                    </View>
-
-                    {/* Info Banner */}
-                    <View style={styles.infoBanner}>
-                        <View style={styles.infoBannerHeader}>
-                            <View style={styles.infoIcon}>
-                                <Ionicons name="information-circle" size={16} color="#0b6b8a" />
-                            </View>
-                            <Text style={styles.infoBannerTitle}>Important Information</Text>
-                        </View>
-                        <Text style={styles.infoBannerText}>
-                            Make sure all vehicle information is accurate. This data will be used for maintenance tracking and availability management.
-                        </Text>
                     </View>
 
                     {/* Action Buttons */}
@@ -606,7 +818,7 @@ export default function AddVehicle() {
                             {loading ? (
                                 <ActivityIndicator color="#fff" />
                             ) : (
-                                <Text style={styles.submitButtonText}>Add Vehicle</Text>
+                                <Text style={styles.submitButtonText}>Save Changes</Text>
                             )}
                         </TouchableOpacity>
                     </View>
@@ -757,39 +969,38 @@ const styles = StyleSheet.create({
         color: '#6b7280',
     },
     header: {
-        backgroundColor: '#fff',
+        backgroundColor: '#0b6b8a',
         paddingTop: Platform.OS === 'ios' ? 50 : 20,
-        paddingBottom: 20,
-        paddingHorizontal: 20,
-        borderBottomWidth: 1,
-        borderBottomColor: '#f1f5f9',
+        paddingBottom: 24,
+        paddingHorizontal: 24,
     },
     headerTop: {
         flexDirection: 'row',
         alignItems: 'center',
-        marginBottom: 20,
+        justifyContent: 'space-between',
+        marginBottom: 16,
     },
     backButton: {
-        width: 36,
-        height: 36,
-        backgroundColor: '#f1f5f9',
+        width: 40,
+        height: 40,
+        backgroundColor: 'rgba(255, 255, 255, 0.2)',
         borderRadius: 10,
         alignItems: 'center',
         justifyContent: 'center',
     },
     headerTitle: {
-        fontSize: 24,
+        fontSize: 28,
         fontWeight: '700',
-        color: '#0f1724',
+        color: '#fff',
         marginBottom: 4,
     },
     headerSubtitle: {
         fontSize: 14,
-        color: '#6b7280',
+        color: 'rgba(255, 255, 255, 0.9)',
     },
     formContainer: {
         padding: 16,
-        paddingTop: 16,
+        marginTop: -16,
     },
     card: {
         backgroundColor: '#fff',
@@ -803,19 +1014,6 @@ const styles = StyleSheet.create({
         shadowOpacity: 0.04,
         shadowRadius: 4,
         elevation: 2,
-    },
-    emptyCard: {
-        alignItems: 'center',
-    },
-    cardHeader: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        marginBottom: 16,
-    },
-    cardHeaderLeft: {
-        flexDirection: 'row',
-        alignItems: 'center',
     },
     cardSectionHeader: {
         flexDirection: 'row',
@@ -834,17 +1032,6 @@ const styles = StyleSheet.create({
         fontSize: 18,
         fontWeight: '600',
         color: '#0f1724',
-    },
-    newButton: {
-        backgroundColor: '#eef9ff',
-        paddingHorizontal: 12,
-        paddingVertical: 6,
-        borderRadius: 8,
-    },
-    newButtonText: {
-        color: '#0b6b8a',
-        fontSize: 12,
-        fontWeight: '600',
     },
     garageScroll: {
         marginHorizontal: -4,
@@ -874,36 +1061,6 @@ const styles = StyleSheet.create({
     },
     garageCardTextSelected: {
         color: '#0b6b8a',
-    },
-    emptyIcon: {
-        width: 64,
-        height: 64,
-        backgroundColor: '#f1f5f9',
-        borderRadius: 32,
-        alignItems: 'center',
-        justifyContent: 'center',
-        marginBottom: 16,
-    },
-    emptyTitle: {
-        fontSize: 18,
-        fontWeight: '600',
-        color: '#0f1724',
-        marginBottom: 8,
-    },
-    emptyText: {
-        fontSize: 14,
-        color: '#6b7280',
-        textAlign: 'center',
-        marginBottom: 20,
-    },
-    createButton: {
-        backgroundColor: '#0b6b8a',
-        paddingHorizontal: 24,
-        paddingVertical: 12,
-        borderRadius: 10,
-    },
-    createButtonText: {
-        color: '#fff',
         fontWeight: '600',
     },
     inputGroup: {
@@ -992,36 +1149,6 @@ const styles = StyleSheet.create({
     },
     availabilitySubtextUnavailable: {
         color: '#ef4444',
-    },
-    infoBanner: {
-        backgroundColor: '#eef9ff',
-        borderWidth: 1,
-        borderColor: '#bae6fd',
-        borderRadius: 12,
-        padding: 16,
-        marginBottom: 16,
-    },
-    infoBannerHeader: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        marginBottom: 8,
-    },
-    infoIcon: {
-        width: 24,
-        height: 24,
-        alignItems: 'center',
-        justifyContent: 'center',
-        marginRight: 8,
-    },
-    infoBannerTitle: {
-        fontSize: 14,
-        fontWeight: '600',
-        color: '#0b6b8a',
-    },
-    infoBannerText: {
-        fontSize: 12,
-        color: '#0b6b8a',
-        lineHeight: 18,
     },
     buttonContainer: {
         flexDirection: 'row',
@@ -1214,3 +1341,4 @@ const styles = StyleSheet.create({
         fontWeight: '600',
     },
 });
+

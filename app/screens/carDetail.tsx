@@ -10,6 +10,7 @@ import {
     StatusBar,
     StyleSheet,
     Platform,
+    Modal,
 } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -43,9 +44,12 @@ export default function CarDetail() {
     const { carId, carData } = useLocalSearchParams();
     const [car, setCar] = useState<CarData | null>(null);
     const [garage, setGarage] = useState<GarageInfo | null>(null);
+    const [allGarages, setAllGarages] = useState<GarageInfo[]>([]);
     const [loading, setLoading] = useState(true);
     const [updatingAvailability, setUpdatingAvailability] = useState(false);
     const [deleting, setDeleting] = useState(false);
+    const [switchingGarage, setSwitchingGarage] = useState(false);
+    const [showGarageModal, setShowGarageModal] = useState(false);
 
     useEffect(() => {
         if (carData) {
@@ -53,6 +57,7 @@ export default function CarDetail() {
                 const parsedCar = JSON.parse(carData as string);
                 setCar(parsedCar);
                 fetchGarageInfo(parsedCar.garage_id);
+                fetchAllGarages();
             } catch (error) {
                 console.error('Error parsing car data:', error);
                 Alert.alert('Error', 'Failed to load car details');
@@ -78,6 +83,65 @@ export default function CarDetail() {
             setGarage(data);
         } catch (error) {
             console.error('Error fetching garage info:', error);
+        }
+    };
+
+    const fetchAllGarages = async () => {
+        try {
+            const { data: { user } } = await supabase.auth.getUser();
+            if (!user) return;
+
+            const { data, error } = await supabase
+                .from('garages')
+                .select('id, name')
+                .eq('user_id', user.id)
+                .order('name');
+
+            if (error) {
+                console.error('Error fetching garages:', error);
+                return;
+            }
+
+            setAllGarages(data || []);
+        } catch (error) {
+            console.error('Error fetching garages:', error);
+        }
+    };
+
+    const handleSwitchGarage = async (newGarageId: string) => {
+        if (!car || newGarageId === car.garage_id) {
+            setShowGarageModal(false);
+            return;
+        }
+
+        setSwitchingGarage(true);
+        try {
+            const { error } = await supabase
+                .from('cars')
+                .update({ garage_id: newGarageId })
+                .eq('id', car.id);
+
+            if (error) {
+                console.error('Error switching garage:', error);
+                Alert.alert('Error', 'Failed to switch garage');
+                setSwitchingGarage(false);
+                return;
+            }
+
+            // Update local state
+            const newGarage = allGarages.find(g => g.id === newGarageId);
+            if (newGarage) {
+                setGarage(newGarage);
+                setCar(prev => prev ? { ...prev, garage_id: newGarageId } : null);
+            }
+
+            setShowGarageModal(false);
+            Alert.alert('Success', `Vehicle moved to ${newGarage?.name || 'garage'}`);
+        } catch (error) {
+            console.error('Error switching garage:', error);
+            Alert.alert('Error', 'Failed to switch garage');
+        } finally {
+            setSwitchingGarage(false);
         }
     };
 
@@ -477,6 +541,20 @@ export default function CarDetail() {
                         </TouchableOpacity>
 
                         <TouchableOpacity
+                            onPress={() => setShowGarageModal(true)}
+                            style={styles.actionCard}
+                        >
+                            <View style={[styles.actionIcon, { backgroundColor: '#f3e8ff' }]}>
+                                <Ionicons name="swap-horizontal" size={22} color="#8b5cf6" />
+                            </View>
+                            <View style={styles.actionContent}>
+                                <Text style={styles.actionTitle}>Switch Garage</Text>
+                                <Text style={styles.actionSubtitle}>Move vehicle to another garage</Text>
+                            </View>
+                            <Ionicons name="chevron-forward" size={20} color="#d1d5db" />
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
                             onPress={() => Alert.alert('Coming Soon', 'Service history feature will be available soon')}
                             style={styles.actionCard}
                         >
@@ -506,6 +584,81 @@ export default function CarDetail() {
                     </View>
                 </View>
             </ScrollView>
+
+            {/* Garage Switch Modal */}
+            <Modal
+                visible={showGarageModal}
+                transparent={true}
+                animationType="slide"
+                onRequestClose={() => setShowGarageModal(false)}
+            >
+                <View style={styles.modalOverlay}>
+                    <View style={styles.modalContent}>
+                        <View style={styles.modalHeader}>
+                            <Text style={styles.modalTitle}>Switch Garage</Text>
+                            <TouchableOpacity
+                                onPress={() => setShowGarageModal(false)}
+                                style={styles.modalCloseButton}
+                            >
+                                <Ionicons name="close" size={24} color="#6b7280" />
+                            </TouchableOpacity>
+                        </View>
+
+                        <Text style={styles.modalSubtitle}>
+                            Select a garage to move this vehicle to:
+                        </Text>
+
+                        <ScrollView style={styles.modalGarageList}>
+                            {allGarages.map((g) => (
+                                <TouchableOpacity
+                                    key={g.id}
+                                    onPress={() => handleSwitchGarage(g.id)}
+                                    disabled={switchingGarage || g.id === car?.garage_id}
+                                    style={[
+                                        styles.modalGarageItem,
+                                        g.id === car?.garage_id && styles.modalGarageItemCurrent,
+                                        (switchingGarage || g.id === car?.garage_id) && styles.modalGarageItemDisabled
+                                    ]}
+                                >
+                                    <View style={styles.modalGarageItemContent}>
+                                        <View style={[
+                                            styles.modalGarageIcon,
+                                            g.id === car?.garage_id && styles.modalGarageIconCurrent
+                                        ]}>
+                                            <Ionicons 
+                                                name="home" 
+                                                size={20} 
+                                                color={g.id === car?.garage_id ? "#0b6b8a" : "#6b7280"} 
+                                            />
+                                        </View>
+                                        <View style={styles.modalGarageItemText}>
+                                            <Text style={[
+                                                styles.modalGarageName,
+                                                g.id === car?.garage_id && styles.modalGarageNameCurrent
+                                            ]}>
+                                                {g.name}
+                                            </Text>
+                                            {g.id === car?.garage_id && (
+                                                <Text style={styles.modalGarageCurrentLabel}>Current garage</Text>
+                                            )}
+                                        </View>
+                                        {g.id === car?.garage_id && (
+                                            <Ionicons name="checkmark-circle" size={24} color="#0b6b8a" />
+                                        )}
+                                    </View>
+                                </TouchableOpacity>
+                            ))}
+                        </ScrollView>
+
+                        {switchingGarage && (
+                            <View style={styles.modalLoading}>
+                                <ActivityIndicator size="small" color="#0b6b8a" />
+                                <Text style={styles.modalLoadingText}>Switching garage...</Text>
+                            </View>
+                        )}
+                    </View>
+                </View>
+            </Modal>
         </View>
     );
 }
@@ -811,6 +964,103 @@ const styles = StyleSheet.create({
         marginBottom: 4,
     },
     actionSubtitle: {
+        fontSize: 14,
+        color: '#6b7280',
+    },
+    modalOverlay: {
+        flex: 1,
+        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+        justifyContent: 'flex-end',
+    },
+    modalContent: {
+        backgroundColor: '#fff',
+        borderTopLeftRadius: 24,
+        borderTopRightRadius: 24,
+        maxHeight: '80%',
+        paddingBottom: Platform.OS === 'ios' ? 34 : 20,
+    },
+    modalHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        padding: 20,
+        borderBottomWidth: 1,
+        borderBottomColor: '#f1f5f9',
+    },
+    modalTitle: {
+        fontSize: 20,
+        fontWeight: '600',
+        color: '#0f1724',
+    },
+    modalCloseButton: {
+        width: 32,
+        height: 32,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    modalSubtitle: {
+        fontSize: 14,
+        color: '#6b7280',
+        paddingHorizontal: 20,
+        paddingTop: 16,
+        paddingBottom: 12,
+    },
+    modalGarageList: {
+        maxHeight: 400,
+    },
+    modalGarageItem: {
+        paddingHorizontal: 20,
+        paddingVertical: 16,
+        borderBottomWidth: 1,
+        borderBottomColor: '#f1f5f9',
+    },
+    modalGarageItemCurrent: {
+        backgroundColor: '#eef9ff',
+    },
+    modalGarageItemDisabled: {
+        opacity: 0.6,
+    },
+    modalGarageItemContent: {
+        flexDirection: 'row',
+        alignItems: 'center',
+    },
+    modalGarageIcon: {
+        width: 40,
+        height: 40,
+        borderRadius: 12,
+        backgroundColor: '#f1f5f9',
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginRight: 12,
+    },
+    modalGarageIconCurrent: {
+        backgroundColor: '#eef9ff',
+    },
+    modalGarageItemText: {
+        flex: 1,
+    },
+    modalGarageName: {
+        fontSize: 16,
+        fontWeight: '500',
+        color: '#0f1724',
+        marginBottom: 4,
+    },
+    modalGarageNameCurrent: {
+        color: '#0b6b8a',
+        fontWeight: '600',
+    },
+    modalGarageCurrentLabel: {
+        fontSize: 12,
+        color: '#0b6b8a',
+    },
+    modalLoading: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: 20,
+        gap: 12,
+    },
+    modalLoadingText: {
         fontSize: 14,
         color: '#6b7280',
     },
